@@ -203,8 +203,10 @@ st.markdown("""
 .product-image{width:100%;display:block;object-fit:cover;object-position:center center;background:#fafafa;}
 .hero-image{height:380px;filter:brightness(0.72);}
 .banner-image{height:200px;filter:brightness(0.72);}
-.product-image-frame{width:100%;overflow:hidden;background:#fafafa;}
-.card-image-frame{aspect-ratio:1/1;}
+.product-image-frame{position:relative;width:100%;overflow:hidden;background:#fafafa;line-height:0;}
+.card-image-frame{position:relative;aspect-ratio:1/1;}
+.card-image-frame .card-image,
+.card-image-frame .card-fallback{position:absolute;inset:0;width:100%;height:100%;min-height:100%;}
 .card-image{width:100%;height:100%;min-height:100%;}
 .image-fallback{width:100%;display:block;background:#fafafa;}
 .hero-fallback{height:380px;}
