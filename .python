@@ -1,0 +1,19 @@
+layout_df = pd.read_excel(file, sheet_name="content_layout")
+product_df = pd.read_excel(file, sheet_name="products")
+
+for _, row in layout_df.iterrows():
+    if row["type"] == "banner":
+        st.image(f"images/{row['image']}")
+        st.title(row["title"])
+        st.caption(row["subtitle"])
+
+    elif row["type"] == "section":
+        st.header(row["title"])
+        group_products = product_df[product_df["group"] == row["product_group"]]
+
+        cols = st.columns(3)
+        for i, (_, p) in enumerate(group_products.iterrows()):
+            with cols[i % 3]:
+                st.image(f"images/{p['이미지']}")
+                st.write(p["상품명"])
+                st.write(f"{p['가격']}원 ({p['할인율']})")
