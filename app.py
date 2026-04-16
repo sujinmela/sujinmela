@@ -200,14 +200,17 @@ st.markdown("""
 .hero-wrap,.banner-wrap{position:relative;overflow:hidden;border-radius:24px;box-shadow:0 12px 36px rgba(0,0,0,0.12);}
 .hero-wrap{margin-bottom:28px;min-height:380px;}
 .banner-wrap{margin:30px 0;min-height:200px;}
-.product-image{width:100%;display:block;object-fit:cover;background:#fafafa;}
+.product-image{width:100%;display:block;object-fit:cover;object-position:center center;background:#fafafa;}
 .hero-image{height:380px;filter:brightness(0.72);}
 .banner-image{height:200px;filter:brightness(0.72);}
-.card-image{aspect-ratio:1/1;}
+.product-image-frame{width:100%;overflow:hidden;background:#fafafa;}
+.card-image-frame{aspect-ratio:1/1;}
+.card-image{width:100%;height:100%;min-height:100%;}
 .image-fallback{width:100%;display:block;background:#fafafa;}
 .hero-fallback{height:380px;}
 .banner-fallback{height:200px;}
-.card-fallback{aspect-ratio:1/1;}
+.card-fallback{width:100%;height:100%;min-height:100%;}
+.product-image-frame .card-fallback{aspect-ratio:auto;}
 .hero-content,.banner-content{position:absolute;left:40px;bottom:34px;color:white;}
 .hero-kicker{display:inline-block;margin-bottom:12px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,0.16);font-size:12px;font-weight:700;letter-spacing:0.08em;}
 .hero-title{font-size:42px;font-weight:800;line-height:1.12;margin-bottom:8px;}
@@ -326,6 +329,7 @@ def product_card_html(product):
         image_classes="product-image card-image",
         fallback_classes="image-fallback card-fallback",
     )
+    image_html = f'<div class="product-image-frame card-image-frame">{image_html}</div>'
     return f"""
     <a class="product-link" href="{normalize_text(product.get('상품링크', '#'))}" target="_blank">
         <div class="product-card">
