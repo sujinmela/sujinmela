@@ -1,7 +1,7 @@
 import base64
 import mimetypes
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -52,6 +52,13 @@ DEFAULT_SETTINGS = {
     "image_mode": "local_first",
     "kakao_brand": "롯데백화점",
     "lms_sender": "롯데백화점",
+}
+
+SECTION_MORE_LINKS = {
+    "MD 추천 상품": {
+        "label": "더보기",
+        "url": "https://www.lotteshopping.com/contents/shpgInfo?cstrCd=0339&cntsTpCd=C00903",
+    }
 }
 
 
@@ -110,6 +117,37 @@ def resolve_image_src(row: pd.Series, settings: Dict[str, Any], path_key: str, u
     return local_src or image_url
 
 
+def build_image_html(
+    src: str,
+    alt: str,
+    image_classes: str,
+    fallback_classes: str,
+    fallback_style: str = "",
+) -> str:
+    if src:
+        return f'<img class="{image_classes}" src="{src}" alt="{alt}">'
+    style_attr = f' style="{fallback_style}"' if fallback_style else ""
+    return f'<div class="{fallback_classes}"{style_attr}></div>'
+
+
+def render_image_block(src: str, alt: str, fallback_bg: str, variant: str) -> str:
+    if variant == "hero":
+        return build_image_html(
+            src=src,
+            alt=alt,
+            image_classes="product-image hero-image",
+            fallback_classes="image-fallback hero-fallback",
+            fallback_style=f"background:{fallback_bg};",
+        )
+    return build_image_html(
+        src=src,
+        alt=alt,
+        image_classes="product-image banner-image",
+        fallback_classes="image-fallback banner-fallback",
+        fallback_style=f"background:{fallback_bg};",
+    )
+
+
 def make_auto_kakao(products_df: pd.DataFrame, settings: Dict[str, Any]) -> pd.DataFrame:
     rows = []
     brand = normalize_text(settings.get("kakao_brand", settings.get("brand_name", "쇼핑뉴스")))
@@ -142,6 +180,19 @@ def make_auto_lms(products_df: pd.DataFrame, settings: Dict[str, Any]) -> pd.Dat
     return pd.DataFrame(rows)
 
 
+def get_section_more_config(row: pd.Series) -> Tuple[str, str]:
+    more_url = normalize_text(row.get("more_url", ""))
+    more_label = normalize_text(row.get("more_label", "")) or "더보기"
+    if more_url:
+        return more_label, more_url
+
+    title = normalize_text(row.get("title", ""))
+    config = SECTION_MORE_LINKS.get(title, {})
+    if config.get("url"):
+        return config.get("label", "더보기"), config["url"]
+    return "", ""
+
+
 st.markdown("""
 <style>
 .stApp { background-color:#f5f5f7; }
@@ -149,9 +200,14 @@ st.markdown("""
 .hero-wrap,.banner-wrap{position:relative;overflow:hidden;border-radius:24px;box-shadow:0 12px 36px rgba(0,0,0,0.12);}
 .hero-wrap{margin-bottom:28px;min-height:380px;}
 .banner-wrap{margin:30px 0;min-height:200px;}
-.hero-wrap img,.banner-wrap img{width:100%;display:block;object-fit:cover;filter:brightness(0.72);}
-.hero-wrap img{height:380px;}
-.banner-wrap img{height:200px;}
+.product-image{width:100%;display:block;object-fit:cover;background:#fafafa;}
+.hero-image{height:380px;filter:brightness(0.72);}
+.banner-image{height:200px;filter:brightness(0.72);}
+.card-image{aspect-ratio:1/1;}
+.image-fallback{width:100%;display:block;background:#fafafa;}
+.hero-fallback{height:380px;}
+.banner-fallback{height:200px;}
+.card-fallback{aspect-ratio:1/1;}
 .hero-content,.banner-content{position:absolute;left:40px;bottom:34px;color:white;}
 .hero-kicker{display:inline-block;margin-bottom:12px;padding:7px 12px;border-radius:999px;background:rgba(255,255,255,0.16);font-size:12px;font-weight:700;letter-spacing:0.08em;}
 .hero-title{font-size:42px;font-weight:800;line-height:1.12;margin-bottom:8px;}
@@ -159,10 +215,14 @@ st.markdown("""
 .banner-title{font-size:30px;font-weight:800;margin-bottom:6px;}
 .banner-subtitle{font-size:16px;opacity:0.95;}
 .section-wrap{margin:36px 0 16px;}
+.section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+.section-meta{flex:1 1 auto;min-width:240px;}
 .section-title{font-size:28px;font-weight:800;color:#111;margin-bottom:6px;}
 .section-subtitle{color:#666;font-size:15px;}
+.more-button{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:999px;background:#111;color:#fff !important;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 8px 18px rgba(0,0,0,0.12);transition:transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;white-space:nowrap;}
+.more-button:hover{background:#2a2a2a;color:#fff !important;transform:translateY(-1px);box-shadow:0 10px 22px rgba(0,0,0,0.16);}
+.more-button::after{content:"→";font-size:14px;line-height:1;}
 .product-card{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #ececec;box-shadow:0 10px 24px rgba(0,0,0,0.06);margin-bottom:22px;}
-.product-image{width:100%;aspect-ratio:1/1;object-fit:cover;background:#fafafa;display:block;}
 .product-body{padding:18px 18px 22px;}
 .badge{display:inline-block;padding:5px 10px;border-radius:999px;background:#111;color:#fff;font-size:12px;font-weight:700;margin-bottom:12px;}
 .brand{color:#888;font-size:12px;font-weight:700;letter-spacing:0.04em;margin-bottom:6px;text-transform:uppercase;}
@@ -216,113 +276,136 @@ with preview_tab:
         1) 앱 실행 폴더 기준으로 <code>images/</code> 폴더를 만듭니다.<br>
         2) 엑셀의 <code>image_path</code>, <code>이미지경로</code> 에 상대경로를 적습니다.<br>
         3) <code>settings</code> 시트의 <code>image_base_path</code> 로 기준 폴더를 지정할 수 있습니다.<br>
-        4) <code>image_mode</code> 는 <code>local_first</code>, <code>local_only</code>, <code>url_only</code> 중 선택합니다.
+        4) <code>image_mode</code> 는 <code>local_first</code>, <code>local_only</code>, <code>url_only</code> 중 선택합니다.<br>
+        5) <code>content_layout</code> 시트에 <code>more_label</code>, <code>more_url</code> 컬럼을 추가하면 섹션별 더보기 버튼도 직접 제어할 수 있습니다.
     </div>
     """, unsafe_allow_html=True)
 
-def render_image_block(src: str, fallback_bg: str, hero: bool):
-    if src:
-        return f'<img src="{src}" alt="visual">'
-    return f'<div style="height:{380 if hero else 200}px;background:{fallback_bg};"></div>'
 
 def render_hero(row):
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#111111")) or "#111111"
+    hero_title = normalize_text(row.get("title", ""))
     st.markdown(f"""
     <div class="hero-wrap">
-        {render_image_block(src, bg, True)}
+        {render_image_block(src, hero_title, bg, "hero")}
         <div class="hero-content">
             <div class="hero-kicker">{settings.get("brand_name", "SHOPPING NEWS")}</div>
-            <div class="hero-title">{row.get("title","")}</div>
-            <div class="hero-subtitle">{row.get("subtitle","")}</div>
+            <div class="hero-title">{hero_title}</div>
+            <div class="hero-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+
 
 def render_banner(row):
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#1f1f1f")) or "#1f1f1f"
+    banner_title = normalize_text(row.get("title", ""))
     st.markdown(f"""
     <div class="banner-wrap">
-        {render_image_block(src, bg, False)}
+        {render_image_block(src, banner_title, bg, "banner")}
         <div class="banner-content">
-            <div class="banner-title">{row.get("title","")}</div>
-            <div class="banner-subtitle">{row.get("subtitle","")}</div>
+            <div class="banner-title">{banner_title}</div>
+            <div class="banner-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+
 def product_card_html(product):
-    badge = normalize_text(product.get("뱃지",""))
-    benefit = normalize_text(product.get("혜택",""))
+    badge = normalize_text(product.get("뱃지", ""))
+    benefit = normalize_text(product.get("혜택", ""))
+    name = normalize_text(product.get("상품명", ""))
     src = resolve_image_src(product, settings, "이미지경로", "이미지URL")
     badge_html = f'<div class="badge">{badge}</div>' if badge else ""
     benefit_html = f'<div class="benefit">혜택 · {benefit}</div>' if benefit else ""
-    image_html = f'<img class="product-image" src="{src}" alt="{normalize_text(product.get("상품명",""))}">' if src else '<div class="product-image"></div>'
+    image_html = build_image_html(
+        src=src,
+        alt=name,
+        image_classes="product-image card-image",
+        fallback_classes="image-fallback card-fallback",
+    )
     return f"""
-    <a class="product-link" href="{normalize_text(product.get('상품링크','#'))}" target="_blank">
+    <a class="product-link" href="{normalize_text(product.get('상품링크', '#'))}" target="_blank">
         <div class="product-card">
             {image_html}
             <div class="product-body">
                 {badge_html}
-                <div class="brand">{normalize_text(product.get("브랜드",""))}</div>
-                <div class="name">{normalize_text(product.get("상품명",""))}</div>
-                <div class="desc">{normalize_text(product.get("설명",""))}</div>
+                <div class="brand">{normalize_text(product.get("브랜드", ""))}</div>
+                <div class="name">{name}</div>
+                <div class="desc">{normalize_text(product.get("설명", ""))}</div>
                 {benefit_html}
                 <div class="price-line">
-                    <span class="sale-rate">{normalize_text(product.get("할인율",""))}</span>
-                    <span class="sale-price">{format_won(product.get("판매가",""))}</span>
+                    <span class="sale-rate">{normalize_text(product.get("할인율", ""))}</span>
+                    <span class="sale-price">{format_won(product.get("판매가", ""))}</span>
                 </div>
-                <div class="origin-price">{format_won(product.get("정가",""))}</div>
+                <div class="origin-price">{format_won(product.get("정가", ""))}</div>
             </div>
         </div>
     </a>
     """
 
+
 with preview_tab:
     for _, row in layout_df.sort_values("order").iterrows():
-        block_type = normalize_text(row.get("type","")).lower()
+        block_type = normalize_text(row.get("type", "")).lower()
         if block_type == "hero":
             render_hero(row)
         elif block_type == "banner":
             render_banner(row)
         elif block_type == "section":
+            more_label, more_url = get_section_more_config(row)
+            more_button_html = (
+                f'<a class="more-button" href="{more_url}" target="_blank" rel="noopener noreferrer">{more_label}</a>'
+                if more_url else ""
+            )
             st.markdown(f"""
             <div class="section-wrap">
-                <div class="section-title">{row.get("title","")}</div>
-                <div class="section-subtitle">{row.get("subtitle","")}</div>
+                <div class="section-head">
+                    <div class="section-meta">
+                        <div class="section-title">{normalize_text(row.get("title", ""))}</div>
+                        <div class="section-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
+                    </div>
+                    {more_button_html}
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            group_df = products_df[products_df["group"].astype(str) == str(row.get("product_group",""))].reset_index(drop=True)
+            group_df = products_df[products_df["group"].astype(str) == str(row.get("product_group", ""))].reset_index(drop=True)
             for start in range(0, len(group_df), columns_per_row):
                 cols = st.columns(columns_per_row)
-                chunk = group_df.iloc[start:start+columns_per_row]
+                chunk = group_df.iloc[start:start + columns_per_row]
                 for idx, (_, product) in enumerate(chunk.iterrows()):
                     with cols[idx]:
                         st.markdown(product_card_html(product), unsafe_allow_html=True)
         elif block_type == "notice":
             st.markdown(f"""
             <div class="notice-box">
-                <div class="notice-title">{row.get("title","안내")}</div>
-                <div style="color:#666; line-height:1.7; font-size:14px;">{row.get("note","")}</div>
+                <div class="notice-title">{normalize_text(row.get("title", "안내"))}</div>
+                <div style="color:#666; line-height:1.7; font-size:14px;">{normalize_text(row.get("note", ""))}</div>
             </div>
             """, unsafe_allow_html=True)
 
-    st.markdown(f'<div class="footer-box">{settings.get("footer_text","")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="footer-box">{settings.get("footer_text", "")}</div>', unsafe_allow_html=True)
 
 with kakao_tab:
     st.subheader("카카오 메시지 발송안")
     st.dataframe(kakao_df, use_container_width=True)
     for _, row in kakao_df.iterrows():
-        st.markdown(f"### {normalize_text(row.get('메시지명','카카오 발송안'))}")
-        st.code(f"[{normalize_text(settings.get('kakao_brand','브랜드'))}] {normalize_text(row.get('타이틀',''))}\n{normalize_text(row.get('본문',''))}\n버튼: {normalize_text(row.get('버튼명',''))} → {normalize_text(row.get('버튼링크',''))}", language="text")
+        st.markdown(f"### {normalize_text(row.get('메시지명', '카카오 발송안'))}")
+        st.code(
+            f"[{normalize_text(settings.get('kakao_brand', '브랜드'))}] {normalize_text(row.get('타이틀', ''))}\n"
+            f"{normalize_text(row.get('본문', ''))}\n"
+            f"버튼: {normalize_text(row.get('버튼명', ''))} → {normalize_text(row.get('버튼링크', ''))}",
+            language="text",
+        )
 
 with lms_tab:
     st.subheader("LMS 메시지 발송안")
     st.dataframe(lms_df, use_container_width=True)
     for _, row in lms_df.iterrows():
-        st.markdown(f"### {normalize_text(row.get('메시지명','LMS 발송안'))}")
-        st.code(normalize_text(row.get("본문","")), language="text")
+        st.markdown(f"### {normalize_text(row.get('메시지명', 'LMS 발송안'))}")
+        st.code(normalize_text(row.get("본문", "")), language="text")
 
 with data_tab:
     if show_raw_data:
