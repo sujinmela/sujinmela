@@ -273,7 +273,7 @@ DEFAULT_PRODUCTS = pd.DataFrame(
             "뱃지": "재입고",
             "이미지파일": "mug.jpg",
             "이미지경로": "images/products/mug.jpg",
-            "이미지URL": "https://images.unsplash.com/photo-1514228742587-6b1558fcf93a?auto=format&fit=crop&w=900&q=80",
+            "이미지URL": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80",
             "상품링크": "https://example.com/product-9",
             "혜택": "세트 특가",
         },
