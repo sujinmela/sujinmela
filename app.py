@@ -102,7 +102,7 @@ DEFAULT_LAYOUT = pd.DataFrame(
         {
             "order": 5,
             "type": "section",
-            "title": "라스트 아이템 리스트",
+            "title": "라스트 아이템",
             "subtitle": "마감 전에 꼭 확인해야 할 마지막 추천 아이템",
             "image_path": "",
             "image_url": "",
@@ -333,6 +333,13 @@ def normalize_text(value: Any) -> str:
     return str(value).strip()
 
 
+def normalize_section_title(value: Any) -> str:
+    title = normalize_text(value)
+    if title == "라스트 아이템 리스트":
+        return "라스트 아이템"
+    return title
+
+
 def format_won(value: Any) -> str:
     try:
         return f"{int(float(value)):,}원"
@@ -497,9 +504,9 @@ st.markdown(
 .hero-image{height:380px;filter:brightness(0.72);}
 .banner-image{height:200px;filter:brightness(0.72);}
 .product-image-frame{position:relative;width:100%;overflow:hidden;background:#fafafa;line-height:0;}
-.card-image-frame{position:relative;aspect-ratio:1/1;}
-.card-image-frame .card-image,.card-image-frame .card-fallback{position:absolute;inset:0;width:100%;height:100%;min-height:100%;}
-.card-image{width:100%;height:100%;min-height:100%;}
+.card-image-frame{position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;background:#fafafa;}
+.card-image-frame .card-image,.card-image-frame .card-fallback{position:absolute;inset:0;width:100%;height:100%;}
+.card-image{width:100%;height:100%;}
 .image-fallback{width:100%;display:block;background:#fafafa;}
 .hero-fallback{height:380px;}
 .banner-fallback{height:200px;}
@@ -594,7 +601,7 @@ with preview_tab:
 def render_hero(row: pd.Series) -> None:
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#111111")) or "#111111"
-    hero_title = normalize_text(row.get("title", ""))
+    hero_title = normalize_section_title(row.get("title", ""))
     st.markdown(
         f"""
     <div class="hero-wrap">
@@ -613,7 +620,7 @@ def render_hero(row: pd.Series) -> None:
 def render_banner(row: pd.Series) -> None:
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#1f1f1f")) or "#1f1f1f"
-    banner_title = normalize_text(row.get("title", ""))
+    banner_title = normalize_section_title(row.get("title", ""))
     banner_link = get_banner_title_link(row)
     banner_title_html = (
         f'<a class="banner-title-link" href="{banner_link}" target="_blank" rel="noopener noreferrer">{banner_title}</a>'
@@ -688,7 +695,7 @@ with preview_tab:
             <div class="section-wrap">
                 <div class="section-head">
                     <div class="section-meta">
-                        <div class="section-title">{normalize_text(row.get("title", ""))}</div>
+                        <div class="section-title">{normalize_section_title(row.get("title", ""))}</div>
                         <div class="section-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
                     </div>
                     {more_button_html}
@@ -710,7 +717,7 @@ with preview_tab:
             st.markdown(
                 f"""
             <div class="notice-box">
-                <div class="notice-title">{normalize_text(row.get("title", "안내"))}</div>
+                <div class="notice-title">{normalize_section_title(row.get("title", "안내"))}</div>
                 <div style="color:#666; line-height:1.7; font-size:14px;">{normalize_text(row.get("note", ""))}</div>
             </div>
             """,
