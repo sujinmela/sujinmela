@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
-import streamlit as st
+import streamlit as st  ###
 
-st.set_page_config(page_title="쇼핑뉴스 생성기", layout="wide")
+st.set_page_config(page_title="쇼핑뉴스 생성기, 이수진", layout="wide") #
 
 
 def load_excel(uploaded_file):
@@ -193,6 +193,13 @@ def get_section_more_config(row: pd.Series) -> Tuple[str, str]:
     return "", ""
 
 
+def get_banner_title_link(row: pd.Series) -> str:
+    title = normalize_text(row.get("title", ""))
+    if title == "카드사 추가 할인":
+        return "https://www.google.com/"
+    return normalize_text(row.get("link_url", ""))
+
+
 st.markdown("""
 <style>
 .stApp { background-color:#f5f5f7; }
@@ -218,6 +225,8 @@ st.markdown("""
 .hero-title{font-size:42px;font-weight:800;line-height:1.12;margin-bottom:8px;}
 .hero-subtitle{font-size:18px;opacity:0.97;}
 .banner-title{font-size:30px;font-weight:800;margin-bottom:6px;}
+.banner-title-link{color:inherit !important;text-decoration:none;}
+.banner-title-link:hover{text-decoration:underline;}
 .banner-subtitle{font-size:16px;opacity:0.95;}
 .section-wrap{margin:36px 0 16px;}
 .section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
@@ -307,11 +316,16 @@ def render_banner(row):
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#1f1f1f")) or "#1f1f1f"
     banner_title = normalize_text(row.get("title", ""))
+    banner_link = get_banner_title_link(row)
+    banner_title_html = (
+        f'<a class="banner-title-link" href="{banner_link}" target="_blank" rel="noopener noreferrer">{banner_title}</a>'
+        if banner_link else banner_title
+    )
     st.markdown(f"""
     <div class="banner-wrap">
         {render_image_block(src, banner_title, bg, "banner")}
         <div class="banner-content">
-            <div class="banner-title">{banner_title}</div>
+            <div class="banner-title">{banner_title_html}</div>
             <div class="banner-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
         </div>
     </div>
