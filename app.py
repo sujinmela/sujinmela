@@ -4,9 +4,298 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
-import streamlit as st  ###
+import streamlit as st
 
-st.set_page_config(page_title="쇼핑뉴스 생성기, 이수진", layout="wide") #
+st.set_page_config(page_title="쇼핑뉴스 생성기", layout="wide")
+
+
+LAYOUT_COLUMNS = [
+    "order",
+    "type",
+    "title",
+    "subtitle",
+    "image_path",
+    "image_url",
+    "product_group",
+    "note",
+    "background",
+    "more_label",
+    "more_url",
+    "link_url",
+]
+
+PRODUCT_COLUMNS = [
+    "group",
+    "상품ID",
+    "브랜드",
+    "상품명",
+    "설명",
+    "정가",
+    "판매가",
+    "할인율",
+    "뱃지",
+    "이미지파일",
+    "이미지경로",
+    "이미지URL",
+    "상품링크",
+    "혜택",
+]
+
+DEFAULT_LAYOUT = pd.DataFrame(
+    [
+        {
+            "order": 1,
+            "type": "hero",
+            "title": "WEEKLY SHOPPING NEWS",
+            "subtitle": "이번 주 꼭 봐야 할 인기 상품과 혜택",
+            "image_path": "images/hero_main.jpg",
+            "image_url": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1400&q=80",
+            "product_group": "",
+            "note": "쇼핑뉴스 메인 비주얼",
+            "background": "#111111",
+            "more_label": "",
+            "more_url": "",
+            "link_url": "",
+        },
+        {
+            "order": 2,
+            "type": "section",
+            "title": "MD 추천 상품",
+            "subtitle": "지금 가장 반응이 좋은 베스트 셀렉션",
+            "image_path": "",
+            "image_url": "",
+            "product_group": "A",
+            "note": "",
+            "background": "",
+            "more_label": "",
+            "more_url": "",
+            "link_url": "",
+        },
+        {
+            "order": 3,
+            "type": "banner",
+            "title": "카드사 추가 할인",
+            "subtitle": "행사 카드 결제 시 최대 10% 청구 할인",
+            "image_path": "images/banner_card.jpg",
+            "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1400&q=80",
+            "product_group": "",
+            "note": "배너/혜택 영역",
+            "background": "#1f1f1f",
+            "more_label": "",
+            "more_url": "",
+            "link_url": "https://www.google.com/",
+        },
+        {
+            "order": 4,
+            "type": "section",
+            "title": "오늘의 특가",
+            "subtitle": "한정 수량으로 준비한 추천 상품",
+            "image_path": "",
+            "image_url": "",
+            "product_group": "B",
+            "note": "",
+            "background": "",
+            "more_label": "",
+            "more_url": "",
+            "link_url": "",
+        },
+        {
+            "order": 5,
+            "type": "section",
+            "title": "라스트 아이템 리스트",
+            "subtitle": "마감 전에 꼭 확인해야 할 마지막 추천 아이템",
+            "image_path": "",
+            "image_url": "",
+            "product_group": "C",
+            "note": "",
+            "background": "",
+            "more_label": "",
+            "more_url": "",
+            "link_url": "",
+        },
+        {
+            "order": 6,
+            "type": "notice",
+            "title": "꼭 확인하세요",
+            "subtitle": "",
+            "image_path": "",
+            "image_url": "",
+            "product_group": "",
+            "note": "상품별 혜택 및 재고는 실시간으로 변동될 수 있습니다. 상세 내용은 각 상품 페이지에서 확인해주세요.",
+            "background": "",
+            "more_label": "",
+            "more_url": "",
+            "link_url": "",
+        },
+    ],
+    columns=LAYOUT_COLUMNS,
+)
+
+DEFAULT_PRODUCTS = pd.DataFrame(
+    [
+        {
+            "group": "A",
+            "상품ID": "A001",
+            "브랜드": "SPARTA SELECT",
+            "상품명": "프리미엄 셔츠",
+            "설명": "데일리로 입기 좋은 베이직 셔츠",
+            "정가": 59000,
+            "판매가": 39000,
+            "할인율": "34%",
+            "뱃지": "무료배송",
+            "이미지파일": "shirt.jpg",
+            "이미지경로": "images/products/shirt.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-1",
+            "혜택": "카드 5% 추가",
+        },
+        {
+            "group": "A",
+            "상품ID": "A002",
+            "브랜드": "SPARTA DENIM",
+            "상품명": "데님 팬츠",
+            "설명": "핏과 착용감을 동시에 잡은 스테디셀러",
+            "정가": 79000,
+            "판매가": 49000,
+            "할인율": "38%",
+            "뱃지": "MD추천",
+            "이미지파일": "denim.jpg",
+            "이미지경로": "images/products/denim.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-2",
+            "혜택": "무료배송",
+        },
+        {
+            "group": "A",
+            "상품ID": "A003",
+            "브랜드": "SPARTA SHOES",
+            "상품명": "클래식 스니커즈",
+            "설명": "가볍고 어디에나 잘 어울리는 데일리 슈즈",
+            "정가": 89000,
+            "판매가": 59000,
+            "할인율": "33%",
+            "뱃지": "인기",
+            "이미지파일": "shoes.jpg",
+            "이미지경로": "images/products/shoes.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-3",
+            "혜택": "사은품 증정",
+        },
+        {
+            "group": "B",
+            "상품ID": "B001",
+            "브랜드": "SPARTA BAG",
+            "상품명": "미니 크로스백",
+            "설명": "필수 소지품만 담아 가볍게 들기 좋은 가방",
+            "정가": 69000,
+            "판매가": 45000,
+            "할인율": "35%",
+            "뱃지": "한정수량",
+            "이미지파일": "bag.jpg",
+            "이미지경로": "images/products/bag.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-4",
+            "혜택": "장바구니 2천원",
+        },
+        {
+            "group": "B",
+            "상품ID": "B002",
+            "브랜드": "SPARTA SOUND",
+            "상품명": "무선 이어폰",
+            "설명": "출퇴근과 이동 시 모두 잘 어울리는 가성비 모델",
+            "정가": 129000,
+            "판매가": 89000,
+            "할인율": "31%",
+            "뱃지": "베스트",
+            "이미지파일": "earbuds.jpg",
+            "이미지경로": "images/products/earbuds.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-5",
+            "혜택": "무료배송",
+        },
+        {
+            "group": "B",
+            "상품ID": "B003",
+            "브랜드": "SPARTA TECH",
+            "상품명": "스마트 워치",
+            "설명": "건강 관리와 알림 기능까지 담은 실속형 워치",
+            "정가": 199000,
+            "판매가": 149000,
+            "할인율": "25%",
+            "뱃지": "추천",
+            "이미지파일": "watch.jpg",
+            "이미지경로": "images/products/watch.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-6",
+            "혜택": "스트랩 증정",
+        },
+        {
+            "group": "C",
+            "상품ID": "C001",
+            "브랜드": "SPARTA HOME",
+            "상품명": "컴팩트 무드 램프",
+            "설명": "침실과 거실 어디에나 어울리는 감성 조명",
+            "정가": 54000,
+            "판매가": 35000,
+            "할인율": "35%",
+            "뱃지": "LAST ITEM",
+            "이미지파일": "lamp.jpg",
+            "이미지경로": "images/products/lamp.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-7",
+            "혜택": "한정 수량",
+        },
+        {
+            "group": "C",
+            "상품ID": "C002",
+            "브랜드": "SPARTA LIVING",
+            "상품명": "소프트 블랭킷",
+            "설명": "가볍고 포근하게 활용하기 좋은 데일리 담요",
+            "정가": 47000,
+            "판매가": 29000,
+            "할인율": "38%",
+            "뱃지": "마감임박",
+            "이미지파일": "blanket.jpg",
+            "이미지경로": "images/products/blanket.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1517705008128-361805f42e86?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-8",
+            "혜택": "즉시 할인",
+        },
+        {
+            "group": "C",
+            "상품ID": "C003",
+            "브랜드": "SPARTA TABLE",
+            "상품명": "세라믹 머그 세트",
+            "설명": "집들이 선물로도 좋은 미니멀 머그컵 구성",
+            "정가": 39000,
+            "판매가": 25000,
+            "할인율": "36%",
+            "뱃지": "재입고",
+            "이미지파일": "mug.jpg",
+            "이미지경로": "images/products/mug.jpg",
+            "이미지URL": "https://images.unsplash.com/photo-1514228742587-6b1558fcf93a?auto=format&fit=crop&w=900&q=80",
+            "상품링크": "https://example.com/product-9",
+            "혜택": "세트 특가",
+        },
+    ],
+    columns=PRODUCT_COLUMNS,
+)
+
+DEFAULT_SETTINGS = {
+    "brand_name": "LOTTE STYLE DEMO",
+    "footer_text": "본 행사는 당사 사정에 따라 조기 종료될 수 있습니다.",
+    "image_base_path": ".",
+    "image_mode": "local_first",
+    "kakao_brand": "롯데백화점",
+    "lms_sender": "롯데백화점",
+}
+
+SECTION_MORE_LINKS = {
+    "MD 추천 상품": {
+        "label": "더보기",
+        "url": "https://www.lotteshopping.com/contents/shpgInfo?cstrCd=0339&cntsTpCd=C00903",
+    }
+}
 
 
 def load_excel(uploaded_file):
@@ -26,40 +315,6 @@ def load_excel(uploaded_file):
         read_optional("kakao_messages"),
         read_optional("lms_messages"),
     )
-
-
-DEFAULT_LAYOUT = pd.DataFrame([
-    {"order": 1, "type": "hero", "title": "WEEKLY SHOPPING NEWS", "subtitle": "이번 주 꼭 봐야 할 인기 상품과 혜택", "image_path": "images/hero_main.jpg", "image_url": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1400&q=80", "product_group": "", "note": "쇼핑뉴스 메인 비주얼", "background": "#111111"},
-    {"order": 2, "type": "section", "title": "MD 추천 상품", "subtitle": "지금 가장 반응이 좋은 베스트 셀렉션", "image_path": "", "image_url": "", "product_group": "A", "note": "", "background": ""},
-    {"order": 3, "type": "banner", "title": "카드사 추가 할인", "subtitle": "행사 카드 결제 시 최대 10% 청구 할인", "image_path": "images/banner_card.jpg", "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1400&q=80", "product_group": "", "note": "배너/혜택 영역", "background": "#1f1f1f"},
-    {"order": 4, "type": "section", "title": "오늘의 특가", "subtitle": "한정 수량으로 준비한 추천 상품", "image_path": "", "image_url": "", "product_group": "B", "note": "", "background": ""},
-    {"order": 5, "type": "notice", "title": "꼭 확인하세요", "subtitle": "", "image_path": "", "image_url": "", "product_group": "", "note": "상품별 혜택 및 재고는 실시간으로 변동될 수 있습니다. 상세 내용은 각 상품 페이지에서 확인해주세요.", "background": ""},
-])
-
-DEFAULT_PRODUCTS = pd.DataFrame([
-    {"group": "A", "상품ID": "A001", "브랜드": "SPARTA SELECT", "상품명": "프리미엄 셔츠", "설명": "데일리로 입기 좋은 베이직 핏 셔츠", "정가": 59000, "판매가": 39000, "할인율": "34%", "뱃지": "무료배송", "이미지파일": "shirt.jpg", "이미지경로": "images/products/shirt.jpg", "이미지URL": "https://images.unsplash.com/photo-1603252109303-2751441dd157?auto=format&fit=crop&w=900&q=80", "상품링크": "https://example.com/product-1", "혜택": "카드 5% 추가"},
-    {"group": "A", "상품ID": "A002", "브랜드": "SPARTA DENIM", "상품명": "데님 팬츠", "설명": "핏과 착용감을 동시에 잡은 스테디셀러", "정가": 79000, "판매가": 49000, "할인율": "38%", "뱃지": "MD추천", "이미지파일": "denim.jpg", "이미지경로": "images/products/denim.jpg", "이미지URL": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=900&q=80", "상품링크": "https://example.com/product-2", "혜택": "무료배송"},
-    {"group": "A", "상품ID": "A003", "브랜드": "SPARTA SHOES", "상품명": "클래식 스니커즈", "설명": "가볍고 어디에나 잘 어울리는 데일리 슈즈", "정가": 89000, "판매가": 59000, "할인율": "33%", "뱃지": "인기", "이미지파일": "shoes.jpg", "이미지경로": "images/products/shoes.jpg", "이미지URL": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80", "상품링크": "https://example.com/product-3", "혜택": "사은품 증정"},
-    {"group": "B", "상품ID": "B001", "브랜드": "SPARTA BAG", "상품명": "미니 크로스백", "설명": "필수 소지품만 담아 가볍게 들기 좋은 백", "정가": 69000, "판매가": 45000, "할인율": "35%", "뱃지": "한정수량", "이미지파일": "bag.jpg", "이미지경로": "images/products/bag.jpg", "이미지URL": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80", "상품링크": "https://example.com/product-4", "혜택": "적립금 2천원"},
-    {"group": "B", "상품ID": "B002", "브랜드": "SPARTA SOUND", "상품명": "무선 이어폰", "설명": "출퇴근과 운동에 모두 잘 어울리는 가성비 모델", "정가": 129000, "판매가": 89000, "할인율": "31%", "뱃지": "베스트", "이미지파일": "earbuds.jpg", "이미지경로": "images/products/earbuds.jpg", "이미지URL": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=80", "상품링크": "https://example.com/product-5", "혜택": "무료배송"},
-    {"group": "B", "상품ID": "B003", "브랜드": "SPARTA TECH", "상품명": "스마트 워치", "설명": "건강 관리와 알림 기능을 한 번에", "정가": 199000, "판매가": 149000, "할인율": "25%", "뱃지": "사은품", "이미지파일": "watch.jpg", "이미지경로": "images/products/watch.jpg", "이미지URL": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80", "상품링크": "https://example.com/product-6", "혜택": "스트랩 증정"},
-])
-
-DEFAULT_SETTINGS = {
-    "brand_name": "LOTTE STYLE DEMO",
-    "footer_text": "본 행사는 당사 사정에 따라 조기 종료될 수 있습니다.",
-    "image_base_path": ".",
-    "image_mode": "local_first",
-    "kakao_brand": "롯데백화점",
-    "lms_sender": "롯데백화점",
-}
-
-SECTION_MORE_LINKS = {
-    "MD 추천 상품": {
-        "label": "더보기",
-        "url": "https://www.lotteshopping.com/contents/shpgInfo?cstrCd=0339&cntsTpCd=C00903",
-    }
-}
 
 
 def settings_to_dict(settings_df: pd.DataFrame) -> Dict[str, Any]:
@@ -83,6 +338,22 @@ def format_won(value: Any) -> str:
         return f"{int(float(value)):,}원"
     except Exception:
         return str(value)
+
+
+def ensure_layout_columns(layout_df: pd.DataFrame) -> pd.DataFrame:
+    df = layout_df.copy()
+    for column in LAYOUT_COLUMNS:
+        if column not in df.columns:
+            df[column] = ""
+    return df[LAYOUT_COLUMNS].fillna("")
+
+
+def ensure_product_columns(products_df: pd.DataFrame) -> pd.DataFrame:
+    df = products_df.copy()
+    for column in PRODUCT_COLUMNS:
+        if column not in df.columns:
+            df[column] = ""
+    return df[PRODUCT_COLUMNS].fillna("")
 
 
 def image_file_to_data_uri(path: Path) -> Optional[str]:
@@ -152,16 +423,22 @@ def make_auto_kakao(products_df: pd.DataFrame, settings: Dict[str, Any]) -> pd.D
     rows = []
     brand = normalize_text(settings.get("kakao_brand", settings.get("brand_name", "쇼핑뉴스")))
     for _, row in products_df.head(6).iterrows():
-        rows.append({
-            "seq": len(rows) + 1,
-            "구분": "친구톡",
-            "메시지명": f"{normalize_text(row.get('상품명'))} 카카오 발송안",
-            "타이틀": f"{brand} {normalize_text(row.get('상품명'))}",
-            "본문": f"{normalize_text(row.get('상품명'))} {format_won(row.get('판매가'))} / {normalize_text(row.get('할인율'))}\n{normalize_text(row.get('혜택'))} 혜택까지 확인해보세요.",
-            "버튼명": "지금 확인하기",
-            "버튼링크": normalize_text(row.get("상품링크")),
-            "대상상품ID": normalize_text(row.get("상품ID")),
-        })
+        rows.append(
+            {
+                "seq": len(rows) + 1,
+                "구분": "친구톡",
+                "메시지명": f"{normalize_text(row.get('상품명'))} 카카오 발송안",
+                "타이틀": f"{brand} {normalize_text(row.get('상품명'))}",
+                "본문": (
+                    f"{normalize_text(row.get('상품명'))} {format_won(row.get('판매가'))} / "
+                    f"{normalize_text(row.get('할인율'))}\n"
+                    f"{normalize_text(row.get('혜택'))} 혜택까지 확인해보세요."
+                ),
+                "버튼명": "지금 확인하기",
+                "버튼링크": normalize_text(row.get("상품링크")),
+                "대상상품ID": normalize_text(row.get("상품ID")),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -169,14 +446,22 @@ def make_auto_lms(products_df: pd.DataFrame, settings: Dict[str, Any]) -> pd.Dat
     rows = []
     sender = normalize_text(settings.get("lms_sender", settings.get("brand_name", "쇼핑뉴스")))
     for _, row in products_df.head(6).iterrows():
-        rows.append({
-            "seq": len(rows) + 1,
-            "발송구분": "LMS",
-            "메시지명": f"{normalize_text(row.get('상품명'))} LMS 발송안",
-            "발신프로필": sender,
-            "본문": f"[{sender}] {normalize_text(row.get('상품명'))}\n{normalize_text(row.get('설명'))}\n판매가 {format_won(row.get('판매가'))} ({normalize_text(row.get('할인율'))})\n혜택: {normalize_text(row.get('혜택'))}\n구매링크: {normalize_text(row.get('상품링크'))}",
-            "대상상품ID": normalize_text(row.get("상품ID")),
-        })
+        rows.append(
+            {
+                "seq": len(rows) + 1,
+                "발송구분": "LMS",
+                "메시지명": f"{normalize_text(row.get('상품명'))} LMS 발송안",
+                "발신프로필": sender,
+                "본문": (
+                    f"[{sender}] {normalize_text(row.get('상품명'))}\n"
+                    f"{normalize_text(row.get('설명'))}\n"
+                    f"판매가 {format_won(row.get('판매가'))} ({normalize_text(row.get('할인율'))})\n"
+                    f"혜택: {normalize_text(row.get('혜택'))}\n"
+                    f"구매링크: {normalize_text(row.get('상품링크'))}"
+                ),
+                "대상상품ID": normalize_text(row.get("상품ID")),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -200,7 +485,8 @@ def get_banner_title_link(row: pd.Series) -> str:
     return normalize_text(row.get("link_url", ""))
 
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 .stApp { background-color:#f5f5f7; }
 .block-container { max-width:1180px; padding-top:1.2rem; padding-bottom:4rem; }
@@ -212,8 +498,7 @@ st.markdown("""
 .banner-image{height:200px;filter:brightness(0.72);}
 .product-image-frame{position:relative;width:100%;overflow:hidden;background:#fafafa;line-height:0;}
 .card-image-frame{position:relative;aspect-ratio:1/1;}
-.card-image-frame .card-image,
-.card-image-frame .card-fallback{position:absolute;inset:0;width:100%;height:100%;min-height:100%;}
+.card-image-frame .card-image,.card-image-frame .card-fallback{position:absolute;inset:0;width:100%;height:100%;min-height:100%;}
 .card-image{width:100%;height:100%;min-height:100%;}
 .image-fallback{width:100%;display:block;background:#fafafa;}
 .hero-fallback{height:380px;}
@@ -253,7 +538,9 @@ st.markdown("""
 a.product-link{text-decoration:none;color:inherit;}
 .helper-box{background:white;border:1px solid #ececec;border-radius:18px;padding:16px 18px;margin-bottom:16px;}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.sidebar.title("설정")
 use_demo = st.sidebar.toggle("샘플 데이터로 보기", value=True)
@@ -263,16 +550,19 @@ columns_per_row = st.sidebar.selectbox("카드 개수", [2, 3, 4], index=1)
 
 if uploaded_file is not None:
     layout_df, products_df, settings_df, kakao_df, lms_df = load_excel(uploaded_file)
+    layout_df = ensure_layout_columns(layout_df)
+    products_df = ensure_product_columns(products_df)
     settings = settings_to_dict(settings_df)
     data_source = "업로드한 엑셀"
 elif use_demo:
-    layout_df, products_df = DEFAULT_LAYOUT.copy(), DEFAULT_PRODUCTS.copy()
+    layout_df = DEFAULT_LAYOUT.copy()
+    products_df = DEFAULT_PRODUCTS.copy()
     settings = DEFAULT_SETTINGS.copy()
     kakao_df = pd.DataFrame()
     lms_df = pd.DataFrame()
     data_source = "기본 샘플 데이터"
 else:
-    st.info("왼쪽에서 샘플 데이터를 켜거나 엑셀 파일을 업로드해주세요.")
+    st.info("왼쪽 사이드바에서 샘플 데이터를 켜거나 엑셀 파일을 업로드해주세요.")
     st.stop()
 
 if kakao_df.empty:
@@ -281,26 +571,32 @@ if lms_df.empty:
     lms_df = make_auto_lms(products_df, settings)
 
 st.caption(f"현재 데이터: {data_source}")
-preview_tab, kakao_tab, lms_tab, data_tab = st.tabs(["쇼핑뉴스 미리보기", "카카오 메시지", "LMS 메시지", "데이터 확인"])
+preview_tab, kakao_tab, lms_tab, data_tab = st.tabs(
+    ["쇼핑뉴스 미리보기", "카카오 메시지", "LMS 메시지", "데이터 확인"]
+)
 
 with preview_tab:
-    st.markdown("""
+    st.markdown(
+        """
     <div class="helper-box">
         <b>로컬 이미지 사용법</b><br>
         1) 앱 실행 폴더 기준으로 <code>images/</code> 폴더를 만듭니다.<br>
-        2) 엑셀의 <code>image_path</code>, <code>이미지경로</code> 에 상대경로를 적습니다.<br>
+        2) 엑셀의 <code>image_path</code>, <code>이미지경로</code> 컬럼에 상대 경로를 적습니다.<br>
         3) <code>settings</code> 시트의 <code>image_base_path</code> 로 기준 폴더를 지정할 수 있습니다.<br>
         4) <code>image_mode</code> 는 <code>local_first</code>, <code>local_only</code>, <code>url_only</code> 중 선택합니다.<br>
-        5) <code>content_layout</code> 시트에 <code>more_label</code>, <code>more_url</code> 컬럼을 추가하면 섹션별 더보기 버튼도 직접 제어할 수 있습니다.
+        5) <code>content_layout</code> 시트에 <code>more_label</code>, <code>more_url</code> 컬럼을 넣으면 섹션별 더보기 버튼을 직접 제어할 수 있습니다.
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
-def render_hero(row):
+def render_hero(row: pd.Series) -> None:
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#111111")) or "#111111"
     hero_title = normalize_text(row.get("title", ""))
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="hero-wrap">
         {render_image_block(src, hero_title, bg, "hero")}
         <div class="hero-content">
@@ -309,19 +605,23 @@ def render_hero(row):
             <div class="hero-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
-def render_banner(row):
+def render_banner(row: pd.Series) -> None:
     src = resolve_image_src(row, settings, "image_path", "image_url")
     bg = normalize_text(row.get("background", "#1f1f1f")) or "#1f1f1f"
     banner_title = normalize_text(row.get("title", ""))
     banner_link = get_banner_title_link(row)
     banner_title_html = (
         f'<a class="banner-title-link" href="{banner_link}" target="_blank" rel="noopener noreferrer">{banner_title}</a>'
-        if banner_link else banner_title
+        if banner_link
+        else banner_title
     )
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="banner-wrap">
         {render_image_block(src, banner_title, bg, "banner")}
         <div class="banner-content">
@@ -329,10 +629,12 @@ def render_banner(row):
             <div class="banner-subtitle">{normalize_text(row.get("subtitle", ""))}</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
-def product_card_html(product):
+def product_card_html(product: pd.Series) -> str:
     badge = normalize_text(product.get("뱃지", ""))
     benefit = normalize_text(product.get("혜택", ""))
     name = normalize_text(product.get("상품명", ""))
@@ -378,9 +680,11 @@ with preview_tab:
             more_label, more_url = get_section_more_config(row)
             more_button_html = (
                 f'<a class="more-button" href="{more_url}" target="_blank" rel="noopener noreferrer">{more_label}</a>'
-                if more_url else ""
+                if more_url
+                else ""
             )
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="section-wrap">
                 <div class="section-head">
                     <div class="section-meta">
@@ -390,21 +694,28 @@ with preview_tab:
                     {more_button_html}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
-            group_df = products_df[products_df["group"].astype(str) == str(row.get("product_group", ""))].reset_index(drop=True)
+            """,
+                unsafe_allow_html=True,
+            )
+            group_df = products_df[
+                products_df["group"].astype(str) == str(row.get("product_group", ""))
+            ].reset_index(drop=True)
             for start in range(0, len(group_df), columns_per_row):
                 cols = st.columns(columns_per_row)
-                chunk = group_df.iloc[start:start + columns_per_row]
+                chunk = group_df.iloc[start : start + columns_per_row]
                 for idx, (_, product) in enumerate(chunk.iterrows()):
                     with cols[idx]:
                         st.markdown(product_card_html(product), unsafe_allow_html=True)
         elif block_type == "notice":
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div class="notice-box">
                 <div class="notice-title">{normalize_text(row.get("title", "안내"))}</div>
                 <div style="color:#666; line-height:1.7; font-size:14px;">{normalize_text(row.get("note", ""))}</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
     st.markdown(f'<div class="footer-box">{settings.get("footer_text", "")}</div>', unsafe_allow_html=True)
 
@@ -416,7 +727,7 @@ with kakao_tab:
         st.code(
             f"[{normalize_text(settings.get('kakao_brand', '브랜드'))}] {normalize_text(row.get('타이틀', ''))}\n"
             f"{normalize_text(row.get('본문', ''))}\n"
-            f"버튼: {normalize_text(row.get('버튼명', ''))} → {normalize_text(row.get('버튼링크', ''))}",
+            f"버튼: {normalize_text(row.get('버튼명', ''))} -> {normalize_text(row.get('버튼링크', ''))}",
             language="text",
         )
 
