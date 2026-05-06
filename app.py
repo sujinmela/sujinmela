@@ -25,7 +25,6 @@ REQUIRED_EVENT_COLUMNS = [
     "Item_Order",
     "Brand_Label",
     "Event_Title",
-    "Benefit_Copy",
     "Start_Date",
     "End_Date",
     "Location",
@@ -49,15 +48,15 @@ DEFAULT_SETTINGS = {
 
 DEFAULT_SECTIONS = pd.DataFrame(
     [
-        [1, "SUPER HAPPY", "일상 속 커다란 행복", "시즌 대표 테마와 아트 콘텐츠", "Y"],
-        [2, "Special Gift", "사은행사 안내", "카드/상품군별 사은 행사", "Y"],
-        [3, "Cosmetic", "뷰티 아이템 추천", "뷰티 브랜드 신제품 및 프로모션", "Y"],
-        [4, "Spring News", "봄을 여는 스타일 제안", "패션/잡화/스포츠 팝업 및 신상품", "Y"],
-        [5, "For Kids", "아이와 함께할 쇼핑", "아동·유아 브랜드 행사", "Y"],
-        [6, "Life Style", "안락한 생활 디자인", "가전/가구/리빙 프로모션", "Y"],
-        [7, "F&B", "신선함 가득 식품", "디저트/커피/청과 행사", "Y"],
+        [1, "SUPER HAPPY", "일상 속 커다란 행복", "Y"],
+        [2, "Special Gift", "사은행사 안내", "Y"],
+        [3, "Cosmetic", "뷰티 아이템 추천", "Y"],
+        [4, "Spring News", "봄을 여는 스타일 제안", "Y"],
+        [5, "For Kids", "아이와 함께할 쇼핑", "Y"],
+        [6, "Life Style", "안락한 생활 디자인", "Y"],
+        [7, "F&B", "신선함 가득 식품", "Y"],
     ],
-    columns=["Section_Order", "Section_Code", "Section_Title", "Page_Description", "Include"],
+    columns=["Section_Order", "Section_Code", "Section_Title", "Include"],
 )
 
 
@@ -156,7 +155,7 @@ def ensure_event_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     text_cols = [
         "Include", "Week_Label", "Branch", "Section_Code", "Section_Title",
-        "Brand_Label", "Event_Title", "Benefit_Copy", "Location",
+        "Brand_Label", "Event_Title", "Location",
         "Detail_URL", "Image_URL", "Highlight_Copy",
     ]
     for col in text_cols:
@@ -196,7 +195,11 @@ def load_excel(uploaded_file):
     events_df = pd.read_excel(xl, "Highlight_Input") if "Highlight_Input" in xl.sheet_names else pd.DataFrame(columns=REQUIRED_EVENT_COLUMNS)
 
     events_df = ensure_event_columns(events_df)
-    sections_df = sections_df[["Section_Order", "Section_Code", "Section_Title", "Page_Description", "Include"]].copy()
+    section_cols = ["Section_Order", "Section_Code", "Section_Title", "Include"]
+    for col in section_cols:
+        if col not in sections_df.columns:
+            sections_df[col] = ""
+    sections_df = sections_df[section_cols].copy()
     return settings_df, sections_df, events_df
 
 
@@ -515,51 +518,10 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
 
       /* 실제 롯데 쇼핑 하이라이트 캡쳐본에 맞춘 본문 레이아웃 */
       .highlight-layout {
-        display: grid;
-        grid-template-columns: 190px minmax(0, 1fr);
-        column-gap: 54px;
-        align-items: start;
+        display: block;
+        max-width: 760px;
+        margin: 0 auto;
       }
-      .side-nav {
-        position: sticky;
-        top: 24px;
-        align-self: start;
-        padding-top: 4px;
-      }
-      .side-nav-inner {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-        max-width: 180px;
-      }
-      .side-chip {
-        display: inline-flex;
-        width: fit-content;
-        max-width: 180px;
-        min-height: 24px;
-        align-items: center;
-        padding: 0 12px;
-        border-radius: 999px;
-        background: #f3f3f3;
-        color: #555;
-        text-decoration: none;
-        font-size: 10px;
-        line-height: 1.25;
-        font-weight: 500;
-        letter-spacing: -0.03em;
-        white-space: nowrap;
-      }
-      .side-chip:first-child,
-      .side-chip.active {
-        background: #111111;
-        color: #ffffff;
-        font-weight: 700;
-      }
-      .side-chip:hover {
-        background: #111111;
-        color: #ffffff;
-      }
-
       .highlight-content {
         min-width: 0;
         max-width: 760px;
@@ -666,24 +628,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       @media (max-width: 980px) {
         .lotte-wrap {max-width: 100%;}
         .hero {min-height: 420px; margin-bottom: 36px;}
-        .highlight-layout {
-          grid-template-columns: 1fr;
-          row-gap: 28px;
-        }
-        .side-nav {
-          position: sticky;
-          top: 0;
-          z-index: 5;
-          background: rgba(255,255,255,.96);
-          padding: 10px 0;
-          border-bottom: 1px solid var(--line);
-        }
-        .side-nav-inner {
-          flex-direction: row;
-          overflow-x: auto;
-          max-width: none;
-          padding-bottom: 2px;
-        }
+        .highlight-layout {max-width: none;}
         .highlight-content {max-width: none;}
       }
       @media (max-width: 720px) {
@@ -702,16 +647,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         for _, row in section_data.iterrows()
     )
 
-    side_nav_items = []
-    for idx, (_, row) in enumerate(section_data.iterrows()):
-        anchor = section_anchor_id(row.get("Section_Code"), row.get("Section_Order"))
-        code_text = html.escape(clean_text(row.get("Section_Code")))
-        title_text = html.escape(clean_text(row.get("Section_Title")))
-        active_class = " active" if idx == 0 else ""
-        side_nav_items.append(
-            f"<a class='side-chip{active_class}' href='#{anchor}'>[{code_text}] {title_text}</a>"
-        )
-    side_nav = "".join(side_nav_items)
 
     hero_style = f' style="--hero-bg: url(\'{html.escape(hero_image_src, quote=True)}\');"' if hero_image_src else ""
     hero_class = "hero has-image" if hero_image_src else "hero"
@@ -728,7 +663,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         "</div>",
         "</div>",
         "<div class='highlight-layout'>",
-        f"<aside class='side-nav'><nav class='side-nav-inner'>{side_nav}</nav></aside>",
         "<main class='highlight-content'>",
     ]
 
@@ -740,13 +674,11 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
 
         code = html.escape(clean_text(section.get("Section_Code")))
         title = html.escape(clean_text(section.get("Section_Title")))
-        desc = html.escape(clean_text(section.get("Page_Description")))
-
         body.extend(
             [
                 f"<section class='section' id='{section_anchor_id(section.get('Section_Code'), section.get('Section_Order'))}'>",
                 "<div class='section-title'>",
-                f"<div><div class='section-code'>[{code}]</div><h2>{title}</h2><p>{desc}</p></div>",
+                f"<div><div class='section-code'>[{code}]</div><h2>{title}</h2></div>",
                 f"<span class='item-count'>{len(section_events)} items</span>",
                 "</div>",
                 "<div class='grid'>",
@@ -756,7 +688,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         for _, item in section_events.iterrows():
             brand = html.escape(clean_text(item.get("Brand_Label")))
             title = html.escape(clean_text(item.get("Event_Title")))
-            benefit = html.escape(clean_text(item.get("Benefit_Copy")))
             location = html.escape(clean_text(item.get("Location")))
             date_text = format_date_range(item.get("Start_Date"), item.get("End_Date"))
             detail_url = html.escape(clean_text(item.get("Detail_URL")) or url)
@@ -779,7 +710,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     "<div class='meta'>",
                     f"{'기간: ' + html.escape(date_text) + '<br>' if date_text else ''}",
                     f"{'위치: ' + location + '<br>' if location else ''}",
-                    f"{'혜택: ' + benefit if benefit else ''}",
                     "</div>",
                     f"<div class='detail-link'><a href='{detail_url}' target='_blank'>Read more</a></div>",
                     "</div>",
