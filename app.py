@@ -638,6 +638,11 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         font-weight: 400;
         letter-spacing: -0.02em;
       }
+      .meta-separator {
+        color: #c8c8c8;
+        font-weight: 400;
+        margin: 0 6px;
+      }
       .detail-link {
         display: none;
       }
@@ -708,8 +713,15 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         for _, item in section_events.iterrows():
             brand = html.escape(clean_text(item.get("Brand_Label")))
             title = html.escape(clean_text(item.get("Event_Title")))
-            location = html.escape(clean_text(item.get("Location")))
+            raw_location = clean_text(item.get("Location"))
+            location = html.escape(raw_location)
             date_text = format_date_range(item.get("Start_Date"), item.get("End_Date"))
+            meta_parts = []
+            if date_text:
+                meta_parts.append(html.escape(date_text))
+            if raw_location:
+                meta_parts.append(location)
+            meta_html = "<span class='meta-separator'>l</span>".join(meta_parts)
             detail_url = html.escape(clean_text(item.get("Detail_URL")) or url)
             image_src = resolve_image_src(item.get("Image_URL"), image_lookup)
             image_url = html.escape(image_src, quote=True)
@@ -727,10 +739,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     "<div class='card-body'>",
                     f"<div class='brand'>{brand}</div>",
                     f"<h3>{title}</h3>",
-                    "<div class='meta'>",
-                    f"{'기간: ' + html.escape(date_text) + '<br>' if date_text else ''}",
-                    f"{'위치: ' + location + '<br>' if location else ''}",
-                    "</div>",
+                    f"<div class='meta'>{meta_html}</div>",
                     f"<div class='detail-link'><a href='{detail_url}' target='_blank'>Read more</a></div>",
                     "</div>",
                     "</article>",
@@ -752,18 +761,22 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
 
 
 def format_date_range(start, end) -> str:
+    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+
     def fmt(value):
         if pd.isna(value) or clean_text(value) == "":
             return ""
         try:
-            return pd.to_datetime(value).strftime("%m/%d")
+            dt = pd.to_datetime(value)
+            return f"{dt.month}.{dt.day}({weekdays[dt.weekday()]})"
         except Exception:
-            return clean_text(value)
+            raw = clean_text(value)
+            return raw.replace("/", ".")
 
     s = fmt(start)
     e = fmt(end)
     if s and e:
-        return f"{s} ~ {e}"
+        return f"{s}~{e}"
     return s or e
 
 
