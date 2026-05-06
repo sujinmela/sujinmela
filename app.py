@@ -463,22 +463,23 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero-content {position: relative; z-index: 1; max-width: 720px;}
       .eyebrow {
         font-size: 12px;
+        line-height: 1.05;
         letter-spacing: .02em;
         font-weight: 700;
         color: var(--lotte-red);
         text-transform: none;
-        margin-bottom: 14px;
+        margin-bottom: 6px;
       }
       .hero h1 {
         font-size: 42px;
-        line-height: 1.12;
-        margin: 0 0 12px;
+        line-height: 1.04;
+        margin: 0 0 8px;
         font-weight: 800;
         letter-spacing: -0.055em;
       }
       .hero p {
         font-size: 15px;
-        line-height: 1.65;
+        line-height: 1.32;
         color: #555;
         margin: 0;
         font-weight: 400;
@@ -532,24 +533,41 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         margin: 0 0 64px;
         scroll-margin-top: 90px;
       }
+      .section + .section {
+        border-top: 1px solid #e5e5e5;
+        padding-top: 34px;
+        margin-top: 34px;
+      }
       .section-title {
         position: relative;
-        display: block;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
         border-bottom: 0;
         padding: 0;
-        margin: 0 0 14px;
+        margin: 0 0 16px;
+      }
+      .section-heading {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
       }
       .section-code {
+        display: inline;
         font-size: 17px;
-        line-height: 1.1;
+        line-height: 1.12;
         font-weight: 800;
         color: #111;
         letter-spacing: -0.04em;
-        margin-bottom: 2px;
+        margin: 0;
       }
       .section-title h2 {
+        display: inline;
         font-size: 17px;
-        line-height: 1.18;
+        line-height: 1.12;
         font-weight: 800;
         color: #111;
         margin: 0;
@@ -597,25 +615,25 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         padding: 0;
       }
       .card .brand {
-        font-size: 10px;
-        line-height: 1.28;
+        font-size: 12px;
+        line-height: 1.14;
         color: #111111;
         font-weight: 700;
-        margin: 0 0 3px;
+        margin: 0 0 2px;
         letter-spacing: -0.035em;
       }
       .card h3 {
-        font-size: 11px;
-        line-height: 1.32;
-        margin: 0 0 5px;
+        font-size: 13px;
+        line-height: 1.16;
+        margin: 0 0 3px;
         font-weight: 700;
         color: #111111;
         letter-spacing: -0.04em;
         word-break: keep-all;
       }
       .meta {
-        font-size: 9px;
-        line-height: 1.45;
+        font-size: 10.5px;
+        line-height: 1.24;
         color: #777777;
         font-weight: 400;
         letter-spacing: -0.02em;
@@ -680,7 +698,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
             [
                 f"<section class='section' id='{section_anchor_id(section.get('Section_Code'), section.get('Section_Order'))}'>",
                 "<div class='section-title'>",
-                f"<div><div class='section-code'>[{code}]</div><h2>{title}</h2></div>",
+                f"<div class='section-heading'><span class='section-code'>[{code}]</span><h2>{title}</h2></div>",
                 f"<span class='item-count'>{len(section_events)} items</span>",
                 "</div>",
                 "<div class='grid'>",
