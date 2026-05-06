@@ -1,7 +1,5 @@
 import io
 import html
-import base64
-import mimetypes
 from datetime import datetime
 from pathlib import Path
 
@@ -87,6 +85,17 @@ def clean_text(value) -> str:
 
 def normalize_yes(value) -> bool:
     return clean_text(value).upper() in {"Y", "YES", "TRUE", "1", "노출"}
+
+
+def section_anchor_id(section_code, section_order=None) -> str:
+    """Create stable in-page anchor IDs for section chip navigation."""
+    raw = clean_text(section_code).lower()
+    raw = raw.replace("&", "-")
+    slug = re.sub(r"[^a-z0-9가-힣]+", "-", raw).strip("-")
+    if not slug:
+        order = clean_text(section_order)
+        slug = f"section-{order}" if order else "section"
+    return slug
 
 
 def settings_df_to_dict(settings_df: pd.DataFrame) -> dict:
@@ -273,81 +282,7 @@ def build_lms_message(settings: dict, sections_df: pd.DataFrame, events_df: pd.D
     return "\n".join(lines).strip() + "\n"
 
 
-
-def build_image_lookup(uploaded_image_files) -> dict[str, str]:
-    """Convert uploaded image files into data URIs that can be used inside HTML cards."""
-    image_lookup: dict[str, str] = {}
-    if not uploaded_image_files:
-        return image_lookup
-
-    for uploaded in uploaded_image_files:
-        try:
-            raw = uploaded.getvalue()
-        except Exception:
-            continue
-
-        filename = clean_text(getattr(uploaded, "name", ""))
-        if not filename or not raw:
-            continue
-
-        mime = getattr(uploaded, "type", None) or mimetypes.guess_type(filename)[0] or "image/png"
-        encoded = base64.b64encode(raw).decode("ascii")
-        data_uri = f"data:{mime};base64,{encoded}"
-
-        path_name = Path(filename).name
-        stem = Path(filename).stem
-        for key in {filename, path_name, stem, filename.lower(), path_name.lower(), stem.lower()}:
-            if key:
-                image_lookup[key] = data_uri
-
-    return image_lookup
-
-
-def resolve_image_src(value, image_lookup: dict[str, str] | None = None) -> str:
-    """Resolve Image_URL field as an external URL, data URI, or uploaded image filename."""
-    text = clean_text(value)
-    if not text:
-        return ""
-
-    lowered = text.lower()
-    if lowered.startswith(("http://", "https://", "data:image/")):
-        return text
-
-    image_lookup = image_lookup or {}
-    candidate_keys = [
-        text,
-        Path(text).name,
-        Path(text).stem,
-        text.lower(),
-        Path(text).name.lower(),
-        Path(text).stem.lower(),
-    ]
-
-    # Some users paste local paths such as C:\\Users\\...\\image.jpg or file:///.../image.jpg.
-    # Browser-side apps cannot read those paths, but the filename can still be matched to an uploaded file.
-    normalized = text.replace("file://", "").replace("\\\\", "/").replace("\\", "/")
-    candidate_keys.extend([
-        normalized,
-        Path(normalized).name,
-        Path(normalized).stem,
-        normalized.lower(),
-        Path(normalized).name.lower(),
-        Path(normalized).stem.lower(),
-    ])
-
-    for key in candidate_keys:
-        if key in image_lookup:
-            return image_lookup[key]
-
-    # Return blank rather than a local path, because Streamlit Cloud/browser cannot access local files.
-    if lowered.startswith(("file:", "/", "c:", "d:")) or ":\\" in lowered:
-        return ""
-
-    # Allow relative/static paths for advanced deployments.
-    return text
-
-
-def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: pd.DataFrame, image_lookup: dict[str, str] | None = None) -> str:
+def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: pd.DataFrame) -> str:
     store = html.escape(clean_text(settings.get("Store_Name")))
     week = html.escape(clean_text(settings.get("Week_Label")))
     url = html.escape(clean_text(settings.get("Highlight_URL")))
@@ -369,17 +304,16 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero h1 {font-size: 34px; margin: 8px 0 8px; line-height: 1.15;}
       .hero p {font-size: 16px; color: var(--muted); margin: 0;}
       .chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;}
-      .chip {padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700;}
-      .section {margin: 28px 0;}
+      .chip {display: inline-block; padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink) !important; text-decoration: none !important; transition: all .18s ease;}
+      .chip:hover {border-color: var(--lotte-red); color: var(--lotte-red) !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(230,0,18,.10);}
+      .section {margin: 28px 0; scroll-margin-top: 90px;}
       .section-title {display: flex; justify-content: space-between; gap: 12px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 14px;}
       .section-title h2 {font-size: 23px; margin: 0;}
       .section-title p {font-size: 13px; color: var(--muted); margin: 4px 0 0;}
-      .grid {display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;}
-      @media (max-width: 980px) {.grid {grid-template-columns: repeat(2, minmax(0, 1fr));}}
-      @media (max-width: 640px) {.grid {grid-template-columns: 1fr;}}
+      .grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;}
       .card {border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
       .thumb {width: 100%; aspect-ratio: 1 / 1; background: var(--soft); border-bottom: 1px solid var(--line); overflow: hidden;}
-      .thumb img {width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;}
+      .thumb img {width: 100%; height: 100%; object-fit: cover; display: block;}
       .card-body {padding: 16px;}
       .card .brand {font-size: 13px; color: var(--lotte-red); font-weight: 800; margin-bottom: 8px;}
       .card h3 {font-size: 17px; margin: 0 0 10px; line-height: 1.35;}
@@ -390,7 +324,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
     """
 
     chips = "".join(
-        f"<span class='chip'>{html.escape(clean_text(row['Section_Code']))}</span>"
+        f"<a class='chip' href='#{section_anchor_id(row.get('Section_Code'), row.get('Section_Order'))}'>{html.escape(clean_text(row['Section_Code']))}</a>"
         for _, row in section_data.iterrows()
     )
 
@@ -415,9 +349,11 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         title = html.escape(clean_text(section.get("Section_Title")))
         desc = html.escape(clean_text(section.get("Page_Description")))
 
+        anchor_id = html.escape(section_anchor_id(section.get("Section_Code"), section.get("Section_Order")), quote=True)
+
         body.extend(
             [
-                "<section class='section'>",
+                f"<section class='section' id='{anchor_id}'>",
                 "<div class='section-title'>",
                 f"<div><h2>[{code}] {title}</h2><p>{desc}</p></div>",
                 f"<span class='badge'>{len(section_events)} items</span>",
@@ -433,9 +369,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
             location = html.escape(clean_text(item.get("Location")))
             date_text = format_date_range(item.get("Start_Date"), item.get("End_Date"))
             detail_url = html.escape(clean_text(item.get("Detail_URL")) or url)
-            image_src = resolve_image_src(item.get("Image_URL"), image_lookup)
-            image_url = html.escape(image_src, quote=True)
-            alt_text = html.escape(f"{brand} {title}".strip(), quote=True)
+            image_url = html.escape(clean_text(item.get("Image_URL")))
+            alt_text = html.escape(f"{brand} {title}".strip())
             image_html = (
                 f"<div class='thumb'><img src='{image_url}' alt='{alt_text}' loading='lazy' referrerpolicy='no-referrer'></div>"
                 if image_url
@@ -503,13 +438,6 @@ def main():
     st.caption("엑셀 템플릿의 행사 데이터를 수정하면 카드형 하이라이트 페이지와 LMS 홍보 문안이 자동 생성됩니다.")
 
     uploaded_file = st.sidebar.file_uploader("엑셀 템플릿 업로드", type=["xlsx"])
-    uploaded_image_files = st.sidebar.file_uploader(
-        "이미지 파일 업로드",
-        type=["png", "jpg", "jpeg", "webp", "gif"],
-        accept_multiple_files=True,
-        help="이미지 URL이 없으면 여기에 이미지 파일을 올리고, 엑셀 Image_URL 칸에는 파일명만 입력하세요. 예: main_event.jpg",
-    )
-    image_lookup = build_image_lookup(uploaded_image_files)
 
     settings_df, sections_df, events_df = load_excel(uploaded_file)
     settings = settings_df_to_dict(settings_df)
@@ -537,7 +465,7 @@ def main():
         )
 
         st.subheader("행사 데이터")
-        st.info("Include=Y인 행만 하이라이트 페이지와 LMS에 반영됩니다. Item_Order는 LMS 번호 순서입니다. Image_URL에는 이미지 URL 또는 업로드한 이미지 파일명을 입력할 수 있습니다.")
+        st.info("Include=Y인 행만 하이라이트 페이지와 LMS에 반영됩니다. Item_Order는 LMS 번호 순서입니다.")
         events_df = st.data_editor(
             ensure_event_columns(events_df),
             num_rows="dynamic",
@@ -549,13 +477,13 @@ def main():
                 "Start_Date": st.column_config.DateColumn("Start_Date", format="YYYY-MM-DD"),
                 "End_Date": st.column_config.DateColumn("End_Date", format="YYYY-MM-DD"),
                 "Detail_URL": st.column_config.LinkColumn("Detail_URL"),
-                "Image_URL": st.column_config.TextColumn("Image_URL / Image_File", help="URL 또는 사이드바에 업로드한 이미지 파일명"),
+                "Image_URL": st.column_config.LinkColumn("Image_URL"),
             },
             key="events_editor",
         )
 
     lms_message = build_lms_message(settings, sections_df, events_df)
-    highlight_html = build_highlight_html(settings, sections_df, events_df, image_lookup)
+    highlight_html = build_highlight_html(settings, sections_df, events_df)
 
     with tab_preview:
         st.subheader("하이라이트 페이지 미리보기")
