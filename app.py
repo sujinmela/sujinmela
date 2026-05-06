@@ -25,6 +25,7 @@ REQUIRED_EVENT_COLUMNS = [
     "Item_Order",
     "Brand_Label",
     "Event_Title",
+    "Benefit_Copy",
     "Start_Date",
     "End_Date",
     "Location",
@@ -48,15 +49,15 @@ DEFAULT_SETTINGS = {
 
 DEFAULT_SECTIONS = pd.DataFrame(
     [
-        [1, "SUPER HAPPY", "일상 속 커다란 행복", "Y"],
-        [2, "Special Gift", "사은행사 안내", "Y"],
-        [3, "Cosmetic", "뷰티 아이템 추천", "Y"],
-        [4, "Spring News", "봄을 여는 스타일 제안", "Y"],
-        [5, "For Kids", "아이와 함께할 쇼핑", "Y"],
-        [6, "Life Style", "안락한 생활 디자인", "Y"],
-        [7, "F&B", "신선함 가득 식품", "Y"],
+        [1, "SUPER HAPPY", "일상 속 커다란 행복", "시즌 대표 테마와 아트 콘텐츠", "Y"],
+        [2, "Special Gift", "사은행사 안내", "카드/상품군별 사은 행사", "Y"],
+        [3, "Cosmetic", "뷰티 아이템 추천", "뷰티 브랜드 신제품 및 프로모션", "Y"],
+        [4, "Spring News", "봄을 여는 스타일 제안", "패션/잡화/스포츠 팝업 및 신상품", "Y"],
+        [5, "For Kids", "아이와 함께할 쇼핑", "아동·유아 브랜드 행사", "Y"],
+        [6, "Life Style", "안락한 생활 디자인", "가전/가구/리빙 프로모션", "Y"],
+        [7, "F&B", "신선함 가득 식품", "디저트/커피/청과 행사", "Y"],
     ],
-    columns=["Section_Order", "Section_Code", "Section_Title", "Include"],
+    columns=["Section_Order", "Section_Code", "Section_Title", "Page_Description", "Include"],
 )
 
 
@@ -155,7 +156,7 @@ def ensure_event_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     text_cols = [
         "Include", "Week_Label", "Branch", "Section_Code", "Section_Title",
-        "Brand_Label", "Event_Title", "Location",
+        "Brand_Label", "Event_Title", "Benefit_Copy", "Location",
         "Detail_URL", "Image_URL", "Highlight_Copy",
     ]
     for col in text_cols:
@@ -195,11 +196,7 @@ def load_excel(uploaded_file):
     events_df = pd.read_excel(xl, "Highlight_Input") if "Highlight_Input" in xl.sheet_names else pd.DataFrame(columns=REQUIRED_EVENT_COLUMNS)
 
     events_df = ensure_event_columns(events_df)
-    section_cols = ["Section_Order", "Section_Code", "Section_Title", "Include"]
-    for col in section_cols:
-        if col not in sections_df.columns:
-            sections_df[col] = ""
-    sections_df = sections_df[section_cols].copy()
+    sections_df = sections_df[["Section_Order", "Section_Code", "Section_Title", "Page_Description", "Include"]].copy()
     return settings_df, sections_df, events_df
 
 
@@ -422,225 +419,42 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
     <style>
       :root {
         --lotte-red: #e60012;
-        --ink: #111111;
-        --muted: #777777;
-        --subtle: #999999;
-        --line: #eeeeee;
-        --soft: #f7f7f7;
+        --ink: #111827;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --soft: #f9fafb;
       }
-
+      .lotte-wrap {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink);}
+      .hero {position: relative; overflow: hidden; padding: 42px 32px 36px; border-radius: 28px; border: 1px solid var(--line); margin-bottom: 24px; min-height: 600px; display: flex; align-items: flex-end; background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 48%, #eef2ff 100%);}
+      .hero.has-image {background-image: linear-gradient(90deg, rgba(8,15,38,.84) 0%, rgba(8,15,38,.68) 34%, rgba(8,15,38,.30) 58%, rgba(8,15,38,.05) 100%), var(--hero-bg); background-size: cover; background-position: center 28%;}
+      .hero-content {position: relative; z-index: 1; max-width: 760px;}
+      .eyebrow {font-size: 13px; letter-spacing: .16em; font-weight: 800; color: var(--lotte-red); text-transform: uppercase;}
+      .hero h1 {font-size: 34px; margin: 8px 0 8px; line-height: 1.15;}
+      .hero p {font-size: 16px; color: var(--muted); margin: 0;}
+      .hero.has-image .eyebrow {color: #ff717c;}
+      .hero.has-image h1, .hero.has-image p {color: #ffffff;}
+      .hero.has-image p {opacity: .92;}
+      .chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;}
+      .chip {display: inline-block; padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer;}
+      .hero.has-image .chip {background: rgba(255,255,255,.86); border-color: rgba(255,255,255,.55); box-shadow: 0 6px 16px rgba(0,0,0,.08);}
+      .chip:hover {border-color: var(--lotte-red); color: var(--lotte-red); background: #fff5f5;}
       html {scroll-behavior: smooth;}
-
-      .lotte-wrap {
-        max-width: 1040px;
-        margin: 0 auto;
-        font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: var(--ink);
-        letter-spacing: -0.02em;
-        background: #ffffff;
-      }
-
-      /* 상단 배너: 기존 기능은 유지하되 홈페이지 톤에 맞춰 더 담백하게 */
-      .hero {
-        position: relative;
-        overflow: hidden;
-        padding: 44px 42px 38px;
-        border-radius: 0;
-        border: 0;
-        margin: 0 0 54px;
-        min-height: 520px;
-        display: flex;
-        align-items: flex-end;
-        background: #f5f5f5;
-      }
-      .hero.has-image {
-        background-image:
-          linear-gradient(90deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.14) 38%, rgba(0,0,0,.02) 100%),
-          var(--hero-bg);
-        background-size: cover;
-        background-position: center 28%;
-      }
-      .hero-content {position: relative; z-index: 1; max-width: 720px;}
-      .eyebrow {
-        font-size: 12px;
-        letter-spacing: .02em;
-        font-weight: 700;
-        color: var(--lotte-red);
-        text-transform: none;
-        margin-bottom: 14px;
-      }
-      .hero h1 {
-        font-size: 42px;
-        line-height: 1.12;
-        margin: 0 0 12px;
-        font-weight: 800;
-        letter-spacing: -0.055em;
-      }
-      .hero p {
-        font-size: 15px;
-        line-height: 1.65;
-        color: #555;
-        margin: 0;
-        font-weight: 400;
-      }
-      .hero.has-image .eyebrow,
-      .hero.has-image h1,
-      .hero.has-image p {
-        color: #ffffff;
-        text-shadow: 0 2px 8px rgba(0,0,0,.22);
-      }
-
-      .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin: 22px 0 0;
-      }
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        min-height: 30px;
-        padding: 0 11px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.94);
-        border: 1px solid rgba(0,0,0,.12);
-        font-size: 11px;
-        line-height: 1;
-        font-weight: 700;
-        color: #111;
-        text-decoration: none;
-        cursor: pointer;
-      }
-      .chip:hover {
-        color: var(--lotte-red);
-        border-color: var(--lotte-red);
-      }
-
-      /* 실제 롯데 쇼핑 하이라이트 캡쳐본에 맞춘 본문 레이아웃 */
-      .highlight-layout {
-        display: block;
-        width: 100%;
-        max-width: 1040px;
-        margin: 0 auto;
-      }
-      .highlight-content {
-        min-width: 0;
-        width: 100%;
-        max-width: 1040px;
-      }
-      .section {
-        margin: 0 0 64px;
-        scroll-margin-top: 90px;
-      }
-      .section-title {
-        position: relative;
-        display: block;
-        border-bottom: 0;
-        padding: 0;
-        margin: 0 0 14px;
-      }
-      .section-code {
-        font-size: 17px;
-        line-height: 1.1;
-        font-weight: 800;
-        color: #111;
-        letter-spacing: -0.04em;
-        margin-bottom: 2px;
-      }
-      .section-title h2 {
-        font-size: 17px;
-        line-height: 1.18;
-        font-weight: 800;
-        color: #111;
-        margin: 0;
-        letter-spacing: -0.045em;
-      }
-      .section-title p,
-      .item-count {
-        display: none;
-      }
-
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        column-gap: 28px;
-        row-gap: 38px;
-      }
-
-      .card {
-        border: 0;
-        border-radius: 0;
-        overflow: visible;
-        background: transparent;
-        box-shadow: none;
-      }
-      .thumb {
-        width: 100%;
-        aspect-ratio: 1 / 1;
-        background: #f4f4f4;
-        border: 0;
-        border-radius: 0;
-        overflow: hidden;
-        margin: 0 0 9px;
-      }
-      .thumb img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-        transition: transform .25s ease;
-      }
-      .card:hover .thumb img {
-        transform: scale(1.025);
-      }
-      .card-body {
-        padding: 0;
-      }
-      .card .brand {
-        font-size: 10px;
-        line-height: 1.28;
-        color: #111111;
-        font-weight: 700;
-        margin: 0 0 3px;
-        letter-spacing: -0.035em;
-      }
-      .card h3 {
-        font-size: 11px;
-        line-height: 1.32;
-        margin: 0 0 5px;
-        font-weight: 700;
-        color: #111111;
-        letter-spacing: -0.04em;
-        word-break: keep-all;
-      }
-      .meta {
-        font-size: 9px;
-        line-height: 1.45;
-        color: #777777;
-        font-weight: 400;
-        letter-spacing: -0.02em;
-      }
-      .detail-link {
-        display: none;
-      }
-      .footer-link {
-        display: none;
-      }
-
-      @media (max-width: 980px) {
-        .lotte-wrap {max-width: 100%;}
-        .hero {min-height: 420px; margin-bottom: 36px;}
-        .highlight-layout {max-width: none;}
-        .highlight-content {max-width: none;}
-      }
-      @media (max-width: 720px) {
-        .hero {min-height: 360px; padding: 30px 24px;}
-        .hero h1 {font-size: 32px;}
-        .grid {grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 28px;}
-      }
-      @media (max-width: 480px) {
-        .grid {grid-template-columns: 1fr;}
-      }
+      .section {margin: 28px 0; scroll-margin-top: 96px;}
+      .section-title {display: flex; justify-content: space-between; gap: 12px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 14px;}
+      .section-title h2 {font-size: 23px; margin: 0;}
+      .section-title p {font-size: 13px; color: var(--muted); margin: 4px 0 0;}
+      .grid {display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;}
+      @media (max-width: 980px) {.grid {grid-template-columns: repeat(2, minmax(0, 1fr));}}
+      @media (max-width: 640px) {.grid {grid-template-columns: 1fr;}}
+      .card {border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
+      .thumb {width: 100%; aspect-ratio: 1 / 1; background: var(--soft); border-bottom: 1px solid var(--line); overflow: hidden;}
+      .thumb img {width: 100%; height: 100%; object-fit: cover; display: block;}
+      .card-body {padding: 16px;}
+      .card .brand {font-size: 13px; color: var(--lotte-red); font-weight: 800; margin-bottom: 8px;}
+      .card h3 {font-size: 17px; margin: 0 0 10px; line-height: 1.35;}
+      .meta {font-size: 12px; color: var(--muted); line-height: 1.6;}
+      .badge {display: inline-block; padding: 4px 8px; background: var(--soft); border-radius: 999px; margin-top: 8px; font-size: 12px;}
+      .footer-link {margin-top: 28px; padding: 18px; background: var(--soft); border-radius: 18px; border: 1px solid var(--line); word-break: break-all;}
     </style>
     """
 
@@ -648,7 +462,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         f"<a class='chip' href='#{section_anchor_id(row.get('Section_Code'), row.get('Section_Order'))}'>{html.escape(clean_text(row['Section_Code']))}</a>"
         for _, row in section_data.iterrows()
     )
-
 
     hero_style = f' style="--hero-bg: url(\'{html.escape(hero_image_src, quote=True)}\');"' if hero_image_src else ""
     hero_class = "hero has-image" if hero_image_src else "hero"
@@ -658,14 +471,12 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         "<div class='lotte-wrap'>",
         f"<div class='{hero_class}'{hero_style}>",
         "<div class='hero-content'>",
-        "<div class='eyebrow'>Enjoy Your Time at LOTTE DEPARTMENT STORE</div>",
-        f"<h1>Shopping Highlight</h1>",
-        f"<p>주요 브랜드별 행사와 사은 혜택을 안내드립니다</p>",
+        "<div class='eyebrow'>Enjoy * Your Time at LOTTE</div>",
+        f"<h1>{store} 주차별 쇼핑 하이라이트</h1>",
+        f"<p>{week} 주요 브랜드 행사와 사은 혜택을 한눈에 확인하세요.</p>",
         f"<div class='chips'>{chips}</div>",
         "</div>",
         "</div>",
-        "<div class='highlight-layout'>",
-        "<main class='highlight-content'>",
     ]
 
     for _, section in section_data.iterrows():
@@ -676,12 +487,14 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
 
         code = html.escape(clean_text(section.get("Section_Code")))
         title = html.escape(clean_text(section.get("Section_Title")))
+        desc = html.escape(clean_text(section.get("Page_Description")))
+
         body.extend(
             [
                 f"<section class='section' id='{section_anchor_id(section.get('Section_Code'), section.get('Section_Order'))}'>",
                 "<div class='section-title'>",
-                f"<div><div class='section-code'>[{code}]</div><h2>{title}</h2></div>",
-                f"<span class='item-count'>{len(section_events)} items</span>",
+                f"<div><h2>[{code}] {title}</h2><p>{desc}</p></div>",
+                f"<span class='badge'>{len(section_events)} items</span>",
                 "</div>",
                 "<div class='grid'>",
             ]
@@ -690,6 +503,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         for _, item in section_events.iterrows():
             brand = html.escape(clean_text(item.get("Brand_Label")))
             title = html.escape(clean_text(item.get("Event_Title")))
+            benefit = html.escape(clean_text(item.get("Benefit_Copy")))
             location = html.escape(clean_text(item.get("Location")))
             date_text = format_date_range(item.get("Start_Date"), item.get("End_Date"))
             detail_url = html.escape(clean_text(item.get("Detail_URL")) or url)
@@ -712,8 +526,9 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     "<div class='meta'>",
                     f"{'기간: ' + html.escape(date_text) + '<br>' if date_text else ''}",
                     f"{'위치: ' + location + '<br>' if location else ''}",
+                    f"{'혜택: ' + benefit if benefit else ''}",
                     "</div>",
-                    f"<div class='detail-link'><a href='{detail_url}' target='_blank'>Read more</a></div>",
+                    f"<div class='badge'><a href='{detail_url}' target='_blank'>Read more</a></div>",
                     "</div>",
                     "</article>",
                 ]
@@ -724,8 +539,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
     body.extend(
         [
             f"<div class='footer-link'>자세히 보기: <a href='{url}' target='_blank'>{url}</a></div>",
-            "</main>",
-            "</div>",
             "</div>",
         ]
     )
