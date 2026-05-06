@@ -87,17 +87,6 @@ def normalize_yes(value) -> bool:
     return clean_text(value).upper() in {"Y", "YES", "TRUE", "1", "노출"}
 
 
-def section_anchor_id(section_code, section_order=None) -> str:
-    """Create stable in-page anchor IDs for section chip navigation."""
-    raw = clean_text(section_code).lower()
-    raw = raw.replace("&", "-")
-    slug = re.sub(r"[^a-z0-9가-힣]+", "-", raw).strip("-")
-    if not slug:
-        order = clean_text(section_order)
-        slug = f"section-{order}" if order else "section"
-    return slug
-
-
 def settings_df_to_dict(settings_df: pd.DataFrame) -> dict:
     settings = DEFAULT_SETTINGS.copy()
     if settings_df is None or settings_df.empty:
@@ -156,35 +145,7 @@ def ensure_event_columns(df: pd.DataFrame) -> pd.DataFrame:
     for col in REQUIRED_EVENT_COLUMNS:
         if col not in df.columns:
             df[col] = ""
-
-    df = df[REQUIRED_EVENT_COLUMNS].copy()
-
-    text_cols = [
-        "Include", "Week_Label", "Branch", "Section_Code", "Section_Title",
-        "Brand_Label", "Event_Title", "Benefit_Copy", "Location",
-        "Detail_URL", "Image_URL", "Highlight_Copy",
-    ]
-    for col in text_cols:
-        df[col] = df[col].where(pd.notna(df[col]), "")
-        df[col] = df[col].astype(str).replace({"nan": "", "NaN": "", "NaT": "", "<NA>": ""})
-
-    for col in ["Section_Order", "Item_Order"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    def normalize_date_series(series: pd.Series) -> pd.Series:
-        numeric = pd.to_numeric(series, errors="coerce")
-        converted = pd.to_datetime(series, errors="coerce")
-        excel_date_mask = numeric.between(20000, 60000)
-        if excel_date_mask.any():
-            converted.loc[excel_date_mask] = pd.to_datetime(
-                numeric.loc[excel_date_mask], unit="D", origin="1899-12-30", errors="coerce"
-            )
-        return converted
-
-    for col in ["Start_Date", "End_Date"]:
-        df[col] = normalize_date_series(df[col])
-
-    return df
+    return df[REQUIRED_EVENT_COLUMNS]
 
 
 def load_excel(uploaded_file):
@@ -304,17 +265,13 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero h1 {font-size: 34px; margin: 8px 0 8px; line-height: 1.15;}
       .hero p {font-size: 16px; color: var(--muted); margin: 0;}
       .chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;}
-      .chip {display: inline-block; padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink) !important; text-decoration: none !important; transition: all .18s ease;}
-      .chip:hover {border-color: var(--lotte-red); color: var(--lotte-red) !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(230,0,18,.10);}
-      .section {margin: 28px 0; scroll-margin-top: 90px;}
+      .chip {padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700;}
+      .section {margin: 28px 0;}
       .section-title {display: flex; justify-content: space-between; gap: 12px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 14px;}
       .section-title h2 {font-size: 23px; margin: 0;}
       .section-title p {font-size: 13px; color: var(--muted); margin: 4px 0 0;}
-      .grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;}
-      .card {border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
-      .thumb {width: 100%; aspect-ratio: 1 / 1; background: var(--soft); border-bottom: 1px solid var(--line); overflow: hidden;}
-      .thumb img {width: 100%; height: 100%; object-fit: cover; display: block;}
-      .card-body {padding: 16px;}
+      .grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px;}
+      .card {border: 1px solid var(--line); border-radius: 22px; padding: 16px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
       .card .brand {font-size: 13px; color: var(--lotte-red); font-weight: 800; margin-bottom: 8px;}
       .card h3 {font-size: 17px; margin: 0 0 10px; line-height: 1.35;}
       .meta {font-size: 12px; color: var(--muted); line-height: 1.6;}
@@ -324,7 +281,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
     """
 
     chips = "".join(
-        f"<a class='chip' href='#{section_anchor_id(row.get('Section_Code'), row.get('Section_Order'))}'>{html.escape(clean_text(row['Section_Code']))}</a>"
+        f"<span class='chip'>{html.escape(clean_text(row['Section_Code']))}</span>"
         for _, row in section_data.iterrows()
     )
 
@@ -349,11 +306,9 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         title = html.escape(clean_text(section.get("Section_Title")))
         desc = html.escape(clean_text(section.get("Page_Description")))
 
-        anchor_id = html.escape(section_anchor_id(section.get("Section_Code"), section.get("Section_Order")), quote=True)
-
         body.extend(
             [
-                f"<section class='section' id='{anchor_id}'>",
+                "<section class='section'>",
                 "<div class='section-title'>",
                 f"<div><h2>[{code}] {title}</h2><p>{desc}</p></div>",
                 f"<span class='badge'>{len(section_events)} items</span>",
@@ -369,19 +324,10 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
             location = html.escape(clean_text(item.get("Location")))
             date_text = format_date_range(item.get("Start_Date"), item.get("End_Date"))
             detail_url = html.escape(clean_text(item.get("Detail_URL")) or url)
-            image_url = html.escape(clean_text(item.get("Image_URL")))
-            alt_text = html.escape(f"{brand} {title}".strip())
-            image_html = (
-                f"<div class='thumb'><img src='{image_url}' alt='{alt_text}' loading='lazy' referrerpolicy='no-referrer'></div>"
-                if image_url
-                else ""
-            )
 
             body.extend(
                 [
                     "<article class='card'>",
-                    image_html,
-                    "<div class='card-body'>",
                     f"<div class='brand'>{brand}</div>",
                     f"<h3>{title}</h3>",
                     "<div class='meta'>",
@@ -390,7 +336,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     f"{'혜택: ' + benefit if benefit else ''}",
                     "</div>",
                     f"<div class='badge'><a href='{detail_url}' target='_blank'>Read more</a></div>",
-                    "</div>",
                     "</article>",
                 ]
             )
