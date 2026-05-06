@@ -253,10 +253,12 @@ def build_lms_message(settings: dict, sections_df: pd.DataFrame, events_df: pd.D
             continue
 
         lines.append(f"[{section_code}] {section_title}")
-        for _, item in section_events.iterrows():
+        # LMS 문안에서는 원본 Item_Order 값을 그대로 노출하지 않고,
+        # 섹션 안에서 노출되는 행사만 ① → ② → ③ 순서로 다시 번호를 매깁니다.
+        for display_order, (_, item) in enumerate(section_events.iterrows(), start=1):
             brand = clean_text(item.get("Brand_Label"))
             title = clean_text(item.get("Event_Title"))
-            prefix = circled_number(item.get("Item_Order"))
+            prefix = circled_number(display_order)
             if brand and title:
                 lines.append(f"{prefix} [{brand}] {title}".strip())
             elif title:
@@ -463,23 +465,23 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero-content {position: relative; z-index: 1; max-width: 720px;}
       .eyebrow {
         font-size: 12px;
-        line-height: .72;
+        line-height: .9;
         letter-spacing: .02em;
         font-weight: 700;
         color: var(--lotte-red);
         text-transform: none;
-        margin-bottom: -5px;
+        margin-bottom: 0;
       }
       .hero h1 {
         font-size: 42px;
-        line-height: .78;
-        margin: 0;
+        line-height: .92;
+        margin: -11px 0 4px;
         font-weight: 800;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.055em;
       }
       .hero p {
         font-size: 15px;
-        line-height: 1.05;
+        line-height: 1.32;
         color: #555;
         margin: 0;
         font-weight: 400;
@@ -510,14 +512,23 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         font-size: 11px;
         line-height: 1;
         font-weight: 700;
-        color: #111111;
-        text-decoration: none;
+        color: #111111 !important;
+        text-decoration: none !important;
         cursor: pointer;
       }
       .chip:hover {
         color: #111111;
         background: rgba(255,255,255,.82);
         border-color: rgba(255,255,255,.48);
+      }
+      .lotte-wrap a.chip,
+      .lotte-wrap a.chip:link,
+      .lotte-wrap a.chip:visited,
+      .lotte-wrap a.chip:hover,
+      .lotte-wrap a.chip:active,
+      .lotte-wrap a.chip:focus {
+        color: #111111 !important;
+        text-decoration: none !important;
       }
 
       /* 실제 롯데 쇼핑 하이라이트 캡쳐본에 맞춘 본문 레이아웃 */
@@ -561,7 +572,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .section-code {
         display: inline;
         font-size: 17px;
-        line-height: .88;
+        line-height: 1.12;
         font-weight: 800;
         color: #111;
         letter-spacing: -0.04em;
@@ -570,7 +581,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .section-title h2 {
         display: inline;
         font-size: 17px;
-        line-height: .88;
+        line-height: 1.12;
         font-weight: 800;
         color: #111;
         margin: 0;
@@ -619,7 +630,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card .brand {
         font-size: 12px;
-        line-height: .78;
+        line-height: .86;
         color: #111111;
         font-weight: 700;
         margin: 0;
@@ -627,8 +638,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card h3 {
         font-size: 13px;
-        line-height: .84;
-        margin: -1px 0 0;
+        line-height: .9;
+        margin: -7px 0 0;
         font-weight: 700;
         color: #111111;
         letter-spacing: -0.04em;
@@ -637,6 +648,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .meta {
         font-size: 10.5px;
         line-height: 1.02;
+        margin-top: -7px;
         color: #777777;
         font-weight: 400;
         letter-spacing: -0.02em;
