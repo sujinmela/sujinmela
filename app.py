@@ -141,11 +141,47 @@ def dict_to_settings_df(settings: dict) -> pd.DataFrame:
 
 
 def ensure_event_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Return event data with Streamlit data_editor-friendly dtypes.
+
+    Excel treats columns that are completely blank, such as Image_URL, as float64
+    because the values are NaN. Streamlit's LinkColumn only accepts text-like
+    columns, so we normalize every column before passing it to st.data_editor.
+    """
+    if df is None:
+        df = pd.DataFrame()
     df = df.copy()
+
     for col in REQUIRED_EVENT_COLUMNS:
         if col not in df.columns:
-            df[col] = ""
-    return df[REQUIRED_EVENT_COLUMNS]
+            df[col] = pd.NA
+
+    df = df[REQUIRED_EVENT_COLUMNS].copy()
+
+    text_columns = [
+        "Include",
+        "Week_Label",
+        "Branch",
+        "Section_Code",
+        "Section_Title",
+        "Brand_Label",
+        "Event_Title",
+        "Benefit_Copy",
+        "Location",
+        "Detail_URL",
+        "Image_URL",
+        "Highlight_Copy",
+    ]
+    for col in text_columns:
+        df[col] = df[col].where(df[col].notna(), "")
+        df[col] = df[col].astype(str).replace({"nan": "", "NaN": "", "None": "", "NaT": "", "<NA>": ""})
+
+    for col in ["Section_Order", "Item_Order"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    for col in ["Start_Date", "End_Date"]:
+        df[col] = pd.to_datetime(df[col], errors="coerce")
+
+    return df
 
 
 def load_excel(uploaded_file):
