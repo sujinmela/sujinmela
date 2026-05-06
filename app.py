@@ -463,23 +463,23 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero-content {position: relative; z-index: 1; max-width: 720px;}
       .eyebrow {
         font-size: 12px;
-        line-height: .9;
+        line-height: .72;
         letter-spacing: .02em;
         font-weight: 700;
         color: var(--lotte-red);
         text-transform: none;
-        margin-bottom: 0;
+        margin-bottom: -5px;
       }
       .hero h1 {
         font-size: 42px;
-        line-height: .92;
-        margin: 0 0 4px;
+        line-height: .78;
+        margin: 0;
         font-weight: 800;
         letter-spacing: -0.01em;
       }
       .hero p {
         font-size: 15px;
-        line-height: 1.32;
+        line-height: 1.05;
         color: #555;
         margin: 0;
         font-weight: 400;
@@ -561,7 +561,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .section-code {
         display: inline;
         font-size: 17px;
-        line-height: 1.12;
+        line-height: .88;
         font-weight: 800;
         color: #111;
         letter-spacing: -0.04em;
@@ -570,7 +570,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .section-title h2 {
         display: inline;
         font-size: 17px;
-        line-height: 1.12;
+        line-height: .88;
         font-weight: 800;
         color: #111;
         margin: 0;
@@ -619,7 +619,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card .brand {
         font-size: 12px;
-        line-height: .96;
+        line-height: .78;
         color: #111111;
         font-weight: 700;
         margin: 0;
@@ -627,8 +627,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card h3 {
         font-size: 13px;
-        line-height: 1;
-        margin: 1px 0 0;
+        line-height: .84;
+        margin: -1px 0 0;
         font-weight: 700;
         color: #111111;
         letter-spacing: -0.04em;
@@ -636,7 +636,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .meta {
         font-size: 10.5px;
-        line-height: 1.24;
+        line-height: 1.02;
         color: #777777;
         font-weight: 400;
         letter-spacing: -0.02em;
