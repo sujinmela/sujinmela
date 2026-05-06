@@ -473,7 +473,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero h1 {
         font-size: 42px;
         line-height: .92;
-        margin: -11px 0 4px;
+        margin: 0 0 4px;
         font-weight: 800;
         letter-spacing: -0.055em;
       }
@@ -503,18 +503,21 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         min-height: 30px;
         padding: 0 11px;
         border-radius: 999px;
-        background: rgba(255,255,255,.94);
-        border: 1px solid rgba(0,0,0,.12);
+        background: rgba(255,255,255,.68);
+        border: 1px solid rgba(255,255,255,.34);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
         font-size: 11px;
         line-height: 1;
         font-weight: 700;
-        color: #111;
+        color: #111111;
         text-decoration: none;
         cursor: pointer;
       }
       .chip:hover {
-        color: var(--lotte-red);
-        border-color: var(--lotte-red);
+        color: #111111;
+        background: rgba(255,255,255,.82);
+        border-color: rgba(255,255,255,.48);
       }
 
       /* 실제 롯데 쇼핑 하이라이트 캡쳐본에 맞춘 본문 레이아웃 */
@@ -616,7 +619,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card .brand {
         font-size: 12px;
-        line-height: .86;
+        line-height: .96;
         color: #111111;
         font-weight: 700;
         margin: 0;
@@ -624,8 +627,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card h3 {
         font-size: 13px;
-        line-height: .9;
-        margin: -7px 0 0;
+        line-height: 1;
+        margin: 1px 0 0;
         font-weight: 700;
         color: #111111;
         letter-spacing: -0.04em;
@@ -633,8 +636,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .meta {
         font-size: 10.5px;
-        line-height: 1.02;
-        margin-top: -7px;
+        line-height: 1.24;
         color: #777777;
         font-weight: 400;
         letter-spacing: -0.02em;
