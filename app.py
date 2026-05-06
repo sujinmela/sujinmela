@@ -11,6 +11,7 @@ import streamlit as st
 
 
 TEMPLATE_FILENAME = "lotte_highlight_lms_template.xlsx"
+DEFAULT_HERO_IMAGE_PATH = Path("hero_banner.jpg")
 
 REQUIRED_EVENT_COLUMNS = [
     "Include",
@@ -304,6 +305,41 @@ def build_image_lookup(uploaded_image_files) -> dict[str, str]:
     return image_lookup
 
 
+def file_path_to_data_uri(path: str | Path) -> str:
+    path = Path(path)
+    if not path.exists() or not path.is_file():
+        return ""
+    try:
+        raw = path.read_bytes()
+    except Exception:
+        return ""
+    mime = mimetypes.guess_type(path.name)[0] or "image/jpeg"
+    encoded = base64.b64encode(raw).decode("ascii")
+    return f"data:{mime};base64,{encoded}"
+
+
+def build_single_image_data_uri(uploaded_file) -> str:
+    if uploaded_file is None:
+        return ""
+    try:
+        raw = uploaded_file.getvalue()
+    except Exception:
+        return ""
+    if not raw:
+        return ""
+    filename = clean_text(getattr(uploaded_file, "name", "banner.jpg")) or "banner.jpg"
+    mime = getattr(uploaded_file, "type", None) or mimetypes.guess_type(filename)[0] or "image/jpeg"
+    encoded = base64.b64encode(raw).decode("ascii")
+    return f"data:{mime};base64,{encoded}"
+
+
+def resolve_hero_image(uploaded_file=None) -> str:
+    uploaded_uri = build_single_image_data_uri(uploaded_file)
+    if uploaded_uri:
+        return uploaded_uri
+    return file_path_to_data_uri(DEFAULT_HERO_IMAGE_PATH)
+
+
 def resolve_image_src(value, image_lookup: dict[str, str] | None = None) -> str:
     """Resolve Image_URL field as an external URL, data URI, or uploaded image filename."""
     text = clean_text(value)
@@ -360,7 +396,7 @@ def section_anchor_id(section_code, section_order=None) -> str:
     return f"section-{slug or 'highlight'}"
 
 
-def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: pd.DataFrame, image_lookup: dict[str, str] | None = None) -> str:
+def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: pd.DataFrame, image_lookup: dict[str, str] | None = None, hero_image_src: str = "") -> str:
     store = html.escape(clean_text(settings.get("Store_Name")))
     week = html.escape(clean_text(settings.get("Week_Label")))
     url = html.escape(clean_text(settings.get("Highlight_URL")))
@@ -377,12 +413,18 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         --soft: #f9fafb;
       }
       .lotte-wrap {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink);}
-      .hero {padding: 32px 28px; border-radius: 28px; background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 48%, #eef2ff 100%); border: 1px solid var(--line); margin-bottom: 24px;}
+      .hero {position: relative; overflow: hidden; padding: 34px 28px 30px; border-radius: 28px; border: 1px solid var(--line); margin-bottom: 24px; min-height: 300px; display: flex; align-items: flex-end; background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 48%, #eef2ff 100%);}
+      .hero.has-image {background-image: linear-gradient(90deg, rgba(8,15,38,.84) 0%, rgba(8,15,38,.68) 34%, rgba(8,15,38,.30) 58%, rgba(8,15,38,.05) 100%), var(--hero-bg); background-size: cover; background-position: center center;}
+      .hero-content {position: relative; z-index: 1; max-width: 760px;}
       .eyebrow {font-size: 13px; letter-spacing: .16em; font-weight: 800; color: var(--lotte-red); text-transform: uppercase;}
       .hero h1 {font-size: 34px; margin: 8px 0 8px; line-height: 1.15;}
       .hero p {font-size: 16px; color: var(--muted); margin: 0;}
+      .hero.has-image .eyebrow {color: #ff717c;}
+      .hero.has-image h1, .hero.has-image p {color: #ffffff;}
+      .hero.has-image p {opacity: .92;}
       .chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;}
       .chip {display: inline-block; padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer;}
+      .hero.has-image .chip {background: rgba(255,255,255,.86); border-color: rgba(255,255,255,.55); box-shadow: 0 6px 16px rgba(0,0,0,.08);}
       .chip:hover {border-color: var(--lotte-red); color: var(--lotte-red); background: #fff5f5;}
       html {scroll-behavior: smooth;}
       .section {margin: 28px 0; scroll-margin-top: 96px;}
@@ -409,14 +451,19 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         for _, row in section_data.iterrows()
     )
 
+    hero_style = f' style="--hero-bg: url(\'{html.escape(hero_image_src, quote=True)}\');"' if hero_image_src else ""
+    hero_class = "hero has-image" if hero_image_src else "hero"
+
     body = [
         css,
         "<div class='lotte-wrap'>",
-        "<div class='hero'>",
+        f"<div class='{hero_class}'{hero_style}>",
+        "<div class='hero-content'>",
         "<div class='eyebrow'>Enjoy * Your Time at LOTTE</div>",
         f"<h1>{store} 주차별 쇼핑 하이라이트</h1>",
         f"<p>{week} 주요 브랜드 행사와 사은 혜택을 한눈에 확인하세요.</p>",
         f"<div class='chips'>{chips}</div>",
+        "</div>",
         "</div>",
     ]
 
@@ -519,12 +566,18 @@ def main():
 
     uploaded_file = st.sidebar.file_uploader("엑셀 템플릿 업로드", type=["xlsx"])
     uploaded_image_files = st.sidebar.file_uploader(
-        "이미지 파일 업로드",
+        "카드 이미지 파일 업로드",
         type=["png", "jpg", "jpeg", "webp", "gif"],
         accept_multiple_files=True,
-        help="이미지 URL이 없으면 여기에 이미지 파일을 올리고, 엑셀 Image_URL 칸에는 파일명만 입력하세요. 예: main_event.jpg",
+        help="이미지 URL이 없으면 여기에 카드 이미지를 올리고, 엑셀 Image_URL 칸에는 파일명만 입력하세요. 예: main_event.jpg",
+    )
+    uploaded_hero_image = st.sidebar.file_uploader(
+        "상단 배너 이미지 업로드",
+        type=["png", "jpg", "jpeg", "webp"],
+        help="업로드하면 상단 하이라이트 배너에 사용됩니다. 업로드하지 않으면 기본 본점 배너 이미지를 사용합니다.",
     )
     image_lookup = build_image_lookup(uploaded_image_files)
+    hero_image_src = resolve_hero_image(uploaded_hero_image)
 
     settings_df, sections_df, events_df = load_excel(uploaded_file)
     settings = settings_df_to_dict(settings_df)
@@ -570,7 +623,7 @@ def main():
         )
 
     lms_message = build_lms_message(settings, sections_df, events_df)
-    highlight_html = build_highlight_html(settings, sections_df, events_df, image_lookup)
+    highlight_html = build_highlight_html(settings, sections_df, events_df, image_lookup, hero_image_src)
 
     with tab_preview:
         st.subheader("하이라이트 페이지 미리보기")
