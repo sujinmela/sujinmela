@@ -426,17 +426,17 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .lotte-wrap {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink);}
       .hero {position: relative; overflow: hidden; padding: 42px 32px 36px; border-radius: 28px; border: 1px solid var(--line); margin-bottom: 24px; min-height: 600px; display: flex; align-items: flex-end; background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 48%, #eef2ff 100%);}
-      .hero.has-image {background-image: linear-gradient(90deg, rgba(8,15,38,.84) 0%, rgba(8,15,38,.68) 34%, rgba(8,15,38,.30) 58%, rgba(8,15,38,.05) 100%), var(--hero-bg); background-size: cover; background-position: center 28%;}
+      .hero.has-image {background-image: linear-gradient(90deg, rgba(8,15,38,.38) 0%, rgba(8,15,38,.22) 32%, rgba(8,15,38,.08) 58%, rgba(8,15,38,.00) 100%), var(--hero-bg); background-size: cover; background-position: center 28%;}
       .hero-content {position: relative; z-index: 1; max-width: 760px;}
       .eyebrow {font-size: 13px; letter-spacing: .16em; font-weight: 800; color: var(--lotte-red); text-transform: uppercase;}
       .hero h1 {font-size: 34px; margin: 8px 0 8px; line-height: 1.15;}
       .hero p {font-size: 16px; color: var(--muted); margin: 0;}
       .hero.has-image .eyebrow {color: #ff717c;}
-      .hero.has-image h1, .hero.has-image p {color: #ffffff;}
+      .hero.has-image h1, .hero.has-image p {color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,.22);}
       .hero.has-image p {opacity: .92;}
       .chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;}
       .chip {display: inline-block; padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer;}
-      .hero.has-image .chip {background: rgba(255,255,255,.86); border-color: rgba(255,255,255,.55); box-shadow: 0 6px 16px rgba(0,0,0,.08);}
+      .hero.has-image .chip {background: rgba(255,255,255,.92); border-color: rgba(255,255,255,.72); box-shadow: 0 6px 16px rgba(0,0,0,.06);}
       .chip:hover {border-color: var(--lotte-red); color: var(--lotte-red); background: #fff5f5;}
       html {scroll-behavior: smooth;}
       .section {margin: 28px 0; scroll-margin-top: 96px;}
