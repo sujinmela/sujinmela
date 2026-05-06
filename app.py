@@ -419,42 +419,281 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
     <style>
       :root {
         --lotte-red: #e60012;
-        --ink: #111827;
-        --muted: #6b7280;
-        --line: #e5e7eb;
-        --soft: #f9fafb;
+        --ink: #111111;
+        --muted: #777777;
+        --subtle: #999999;
+        --line: #eeeeee;
+        --soft: #f7f7f7;
       }
-      .lotte-wrap {font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--ink);}
-      .hero {position: relative; overflow: hidden; padding: 42px 32px 36px; border-radius: 28px; border: 1px solid var(--line); margin-bottom: 24px; min-height: 600px; display: flex; align-items: flex-end; background: linear-gradient(135deg, #fff1f2 0%, #fff7ed 48%, #eef2ff 100%);}
-      .hero.has-image {background-image: linear-gradient(90deg, rgba(8,15,38,.38) 0%, rgba(8,15,38,.22) 32%, rgba(8,15,38,.08) 58%, rgba(8,15,38,.00) 100%), var(--hero-bg); background-size: cover; background-position: center 28%;}
-      .hero-content {position: relative; z-index: 1; max-width: 760px;}
-      .eyebrow {font-size: 13px; letter-spacing: .16em; font-weight: 800; color: var(--lotte-red); text-transform: uppercase;}
-      .hero h1 {font-size: 34px; margin: 8px 0 8px; line-height: 1.15;}
-      .hero p {font-size: 16px; color: var(--muted); margin: 0;}
-      .hero.has-image .eyebrow {color: #ff717c;}
-      .hero.has-image h1, .hero.has-image p {color: #ffffff; text-shadow: 0 2px 10px rgba(0,0,0,.22);}
-      .hero.has-image p {opacity: .92;}
-      .chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0;}
-      .chip {display: inline-block; padding: 7px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer;}
-      .hero.has-image .chip {background: rgba(255,255,255,.92); border-color: rgba(255,255,255,.72); box-shadow: 0 6px 16px rgba(0,0,0,.06);}
-      .chip:hover {border-color: var(--lotte-red); color: var(--lotte-red); background: #fff5f5;}
+
       html {scroll-behavior: smooth;}
-      .section {margin: 28px 0; scroll-margin-top: 96px;}
-      .section-title {display: flex; justify-content: space-between; gap: 12px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 14px;}
-      .section-title h2 {font-size: 23px; margin: 0;}
-      .section-title p {font-size: 13px; color: var(--muted); margin: 4px 0 0;}
-      .grid {display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;}
-      @media (max-width: 980px) {.grid {grid-template-columns: repeat(2, minmax(0, 1fr));}}
-      @media (max-width: 640px) {.grid {grid-template-columns: 1fr;}}
-      .card {border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
-      .thumb {width: 100%; aspect-ratio: 1 / 1; background: var(--soft); border-bottom: 1px solid var(--line); overflow: hidden;}
-      .thumb img {width: 100%; height: 100%; object-fit: cover; display: block;}
-      .card-body {padding: 16px;}
-      .card .brand {font-size: 13px; color: var(--lotte-red); font-weight: 800; margin-bottom: 8px;}
-      .card h3 {font-size: 17px; margin: 0 0 10px; line-height: 1.35;}
-      .meta {font-size: 12px; color: var(--muted); line-height: 1.6;}
-      .badge {display: inline-block; padding: 4px 8px; background: var(--soft); border-radius: 999px; margin-top: 8px; font-size: 12px;}
-      .footer-link {margin-top: 28px; padding: 18px; background: var(--soft); border-radius: 18px; border: 1px solid var(--line); word-break: break-all;}
+
+      .lotte-wrap {
+        max-width: 1040px;
+        margin: 0 auto;
+        font-family: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+        background: #ffffff;
+      }
+
+      /* 상단 배너: 기존 기능은 유지하되 홈페이지 톤에 맞춰 더 담백하게 */
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 44px 42px 38px;
+        border-radius: 0;
+        border: 0;
+        margin: 0 0 54px;
+        min-height: 520px;
+        display: flex;
+        align-items: flex-end;
+        background: #f5f5f5;
+      }
+      .hero.has-image {
+        background-image:
+          linear-gradient(90deg, rgba(0,0,0,.32) 0%, rgba(0,0,0,.14) 38%, rgba(0,0,0,.02) 100%),
+          var(--hero-bg);
+        background-size: cover;
+        background-position: center 28%;
+      }
+      .hero-content {position: relative; z-index: 1; max-width: 720px;}
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: .02em;
+        font-weight: 700;
+        color: var(--lotte-red);
+        text-transform: none;
+        margin-bottom: 14px;
+      }
+      .hero h1 {
+        font-size: 42px;
+        line-height: 1.12;
+        margin: 0 0 12px;
+        font-weight: 800;
+        letter-spacing: -0.055em;
+      }
+      .hero p {
+        font-size: 15px;
+        line-height: 1.65;
+        color: #555;
+        margin: 0;
+        font-weight: 400;
+      }
+      .hero.has-image .eyebrow,
+      .hero.has-image h1,
+      .hero.has-image p {
+        color: #ffffff;
+        text-shadow: 0 2px 8px rgba(0,0,0,.22);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 22px 0 0;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.94);
+        border: 1px solid rgba(0,0,0,.12);
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 700;
+        color: #111;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .chip:hover {
+        color: var(--lotte-red);
+        border-color: var(--lotte-red);
+      }
+
+      /* 실제 롯데 쇼핑 하이라이트 캡쳐본에 맞춘 본문 레이아웃 */
+      .highlight-layout {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr);
+        column-gap: 54px;
+        align-items: start;
+      }
+      .side-nav {
+        position: sticky;
+        top: 24px;
+        align-self: start;
+        padding-top: 4px;
+      }
+      .side-nav-inner {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        max-width: 180px;
+      }
+      .side-chip {
+        display: inline-flex;
+        width: fit-content;
+        max-width: 180px;
+        min-height: 24px;
+        align-items: center;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: #f3f3f3;
+        color: #555;
+        text-decoration: none;
+        font-size: 10px;
+        line-height: 1.25;
+        font-weight: 500;
+        letter-spacing: -0.03em;
+        white-space: nowrap;
+      }
+      .side-chip:first-child,
+      .side-chip.active {
+        background: #111111;
+        color: #ffffff;
+        font-weight: 700;
+      }
+      .side-chip:hover {
+        background: #111111;
+        color: #ffffff;
+      }
+
+      .highlight-content {
+        min-width: 0;
+        max-width: 760px;
+      }
+      .section {
+        margin: 0 0 64px;
+        scroll-margin-top: 90px;
+      }
+      .section-title {
+        position: relative;
+        display: block;
+        border-bottom: 0;
+        padding: 0;
+        margin: 0 0 14px;
+      }
+      .section-code {
+        font-size: 17px;
+        line-height: 1.1;
+        font-weight: 800;
+        color: #111;
+        letter-spacing: -0.04em;
+        margin-bottom: 2px;
+      }
+      .section-title h2 {
+        font-size: 17px;
+        line-height: 1.18;
+        font-weight: 800;
+        color: #111;
+        margin: 0;
+        letter-spacing: -0.045em;
+      }
+      .section-title p,
+      .item-count {
+        display: none;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        column-gap: 24px;
+        row-gap: 34px;
+      }
+
+      .card {
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+        background: transparent;
+        box-shadow: none;
+      }
+      .thumb {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        background: #f4f4f4;
+        border: 0;
+        border-radius: 0;
+        overflow: hidden;
+        margin: 0 0 9px;
+      }
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform .25s ease;
+      }
+      .card:hover .thumb img {
+        transform: scale(1.025);
+      }
+      .card-body {
+        padding: 0;
+      }
+      .card .brand {
+        font-size: 10px;
+        line-height: 1.28;
+        color: #111111;
+        font-weight: 700;
+        margin: 0 0 3px;
+        letter-spacing: -0.035em;
+      }
+      .card h3 {
+        font-size: 11px;
+        line-height: 1.32;
+        margin: 0 0 5px;
+        font-weight: 700;
+        color: #111111;
+        letter-spacing: -0.04em;
+        word-break: keep-all;
+      }
+      .meta {
+        font-size: 9px;
+        line-height: 1.45;
+        color: #777777;
+        font-weight: 400;
+        letter-spacing: -0.02em;
+      }
+      .detail-link {
+        display: none;
+      }
+      .footer-link {
+        display: none;
+      }
+
+      @media (max-width: 980px) {
+        .lotte-wrap {max-width: 100%;}
+        .hero {min-height: 420px; margin-bottom: 36px;}
+        .highlight-layout {
+          grid-template-columns: 1fr;
+          row-gap: 28px;
+        }
+        .side-nav {
+          position: sticky;
+          top: 0;
+          z-index: 5;
+          background: rgba(255,255,255,.96);
+          padding: 10px 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .side-nav-inner {
+          flex-direction: row;
+          overflow-x: auto;
+          max-width: none;
+          padding-bottom: 2px;
+        }
+        .highlight-content {max-width: none;}
+      }
+      @media (max-width: 720px) {
+        .hero {min-height: 360px; padding: 30px 24px;}
+        .hero h1 {font-size: 32px;}
+        .grid {grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 28px;}
+      }
+      @media (max-width: 480px) {
+        .grid {grid-template-columns: 1fr;}
+      }
     </style>
     """
 
@@ -462,6 +701,17 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         f"<a class='chip' href='#{section_anchor_id(row.get('Section_Code'), row.get('Section_Order'))}'>{html.escape(clean_text(row['Section_Code']))}</a>"
         for _, row in section_data.iterrows()
     )
+
+    side_nav_items = []
+    for idx, (_, row) in enumerate(section_data.iterrows()):
+        anchor = section_anchor_id(row.get("Section_Code"), row.get("Section_Order"))
+        code_text = html.escape(clean_text(row.get("Section_Code")))
+        title_text = html.escape(clean_text(row.get("Section_Title")))
+        active_class = " active" if idx == 0 else ""
+        side_nav_items.append(
+            f"<a class='side-chip{active_class}' href='#{anchor}'>[{code_text}] {title_text}</a>"
+        )
+    side_nav = "".join(side_nav_items)
 
     hero_style = f' style="--hero-bg: url(\'{html.escape(hero_image_src, quote=True)}\');"' if hero_image_src else ""
     hero_class = "hero has-image" if hero_image_src else "hero"
@@ -477,6 +727,9 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         f"<div class='chips'>{chips}</div>",
         "</div>",
         "</div>",
+        "<div class='highlight-layout'>",
+        f"<aside class='side-nav'><nav class='side-nav-inner'>{side_nav}</nav></aside>",
+        "<main class='highlight-content'>",
     ]
 
     for _, section in section_data.iterrows():
@@ -493,8 +746,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
             [
                 f"<section class='section' id='{section_anchor_id(section.get('Section_Code'), section.get('Section_Order'))}'>",
                 "<div class='section-title'>",
-                f"<div><h2>[{code}] {title}</h2><p>{desc}</p></div>",
-                f"<span class='badge'>{len(section_events)} items</span>",
+                f"<div><div class='section-code'>[{code}]</div><h2>{title}</h2><p>{desc}</p></div>",
+                f"<span class='item-count'>{len(section_events)} items</span>",
                 "</div>",
                 "<div class='grid'>",
             ]
@@ -528,7 +781,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     f"{'위치: ' + location + '<br>' if location else ''}",
                     f"{'혜택: ' + benefit if benefit else ''}",
                     "</div>",
-                    f"<div class='badge'><a href='{detail_url}' target='_blank'>Read more</a></div>",
+                    f"<div class='detail-link'><a href='{detail_url}' target='_blank'>Read more</a></div>",
                     "</div>",
                     "</article>",
                 ]
@@ -539,6 +792,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
     body.extend(
         [
             f"<div class='footer-link'>자세히 보기: <a href='{url}' target='_blank'>{url}</a></div>",
+            "</main>",
+            "</div>",
             "</div>",
         ]
     )
