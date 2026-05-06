@@ -473,7 +473,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .hero h1 {
         font-size: 42px;
         line-height: .92;
-        margin: 0 0 4px;
+        margin: -11px 0 4px;
         font-weight: 800;
         letter-spacing: -0.055em;
       }
@@ -616,7 +616,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card .brand {
         font-size: 12px;
-        line-height: .96;
+        line-height: .86;
         color: #111111;
         font-weight: 700;
         margin: 0;
@@ -624,8 +624,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .card h3 {
         font-size: 13px;
-        line-height: 1;
-        margin: 1px 0 0;
+        line-height: .9;
+        margin: -7px 0 0;
         font-weight: 700;
         color: #111111;
         letter-spacing: -0.04em;
@@ -633,7 +633,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       }
       .meta {
         font-size: 10.5px;
-        line-height: 1.24;
+        line-height: 1.02;
+        margin-top: -7px;
         color: #777777;
         font-weight: 400;
         letter-spacing: -0.02em;
