@@ -519,12 +519,14 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       /* 실제 롯데 쇼핑 하이라이트 캡쳐본에 맞춘 본문 레이아웃 */
       .highlight-layout {
         display: block;
-        max-width: 760px;
+        width: 100%;
+        max-width: 1040px;
         margin: 0 auto;
       }
       .highlight-content {
         min-width: 0;
-        max-width: 760px;
+        width: 100%;
+        max-width: 1040px;
       }
       .section {
         margin: 0 0 64px;
@@ -561,8 +563,8 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        column-gap: 24px;
-        row-gap: 34px;
+        column-gap: 28px;
+        row-gap: 38px;
       }
 
       .card {
