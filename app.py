@@ -141,45 +141,37 @@ def dict_to_settings_df(settings: dict) -> pd.DataFrame:
 
 
 def ensure_event_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Return event data with Streamlit data_editor-friendly dtypes.
-
-    Excel treats columns that are completely blank, such as Image_URL, as float64
-    because the values are NaN. Streamlit's LinkColumn only accepts text-like
-    columns, so we normalize every column before passing it to st.data_editor.
-    """
-    if df is None:
-        df = pd.DataFrame()
     df = df.copy()
-
     for col in REQUIRED_EVENT_COLUMNS:
         if col not in df.columns:
-            df[col] = pd.NA
+            df[col] = ""
 
     df = df[REQUIRED_EVENT_COLUMNS].copy()
 
-    text_columns = [
-        "Include",
-        "Week_Label",
-        "Branch",
-        "Section_Code",
-        "Section_Title",
-        "Brand_Label",
-        "Event_Title",
-        "Benefit_Copy",
-        "Location",
-        "Detail_URL",
-        "Image_URL",
-        "Highlight_Copy",
+    text_cols = [
+        "Include", "Week_Label", "Branch", "Section_Code", "Section_Title",
+        "Brand_Label", "Event_Title", "Benefit_Copy", "Location",
+        "Detail_URL", "Image_URL", "Highlight_Copy",
     ]
-    for col in text_columns:
-        df[col] = df[col].where(df[col].notna(), "")
-        df[col] = df[col].astype(str).replace({"nan": "", "NaN": "", "None": "", "NaT": "", "<NA>": ""})
+    for col in text_cols:
+        df[col] = df[col].where(pd.notna(df[col]), "")
+        df[col] = df[col].astype(str).replace({"nan": "", "NaN": "", "NaT": "", "<NA>": ""})
 
     for col in ["Section_Order", "Item_Order"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
+    def normalize_date_series(series: pd.Series) -> pd.Series:
+        numeric = pd.to_numeric(series, errors="coerce")
+        converted = pd.to_datetime(series, errors="coerce")
+        excel_date_mask = numeric.between(20000, 60000)
+        if excel_date_mask.any():
+            converted.loc[excel_date_mask] = pd.to_datetime(
+                numeric.loc[excel_date_mask], unit="D", origin="1899-12-30", errors="coerce"
+            )
+        return converted
+
     for col in ["Start_Date", "End_Date"]:
-        df[col] = pd.to_datetime(df[col], errors="coerce")
+        df[col] = normalize_date_series(df[col])
 
     return df
 
@@ -306,8 +298,11 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
       .section-title {display: flex; justify-content: space-between; gap: 12px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 10px; margin-bottom: 14px;}
       .section-title h2 {font-size: 23px; margin: 0;}
       .section-title p {font-size: 13px; color: var(--muted); margin: 4px 0 0;}
-      .grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px;}
-      .card {border: 1px solid var(--line); border-radius: 22px; padding: 16px; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
+      .grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;}
+      .card {border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 8px 20px rgba(15,23,42,.06);}
+      .thumb {width: 100%; aspect-ratio: 16 / 9; background: var(--soft); border-bottom: 1px solid var(--line); overflow: hidden;}
+      .thumb img {width: 100%; height: 100%; object-fit: cover; display: block;}
+      .card-body {padding: 16px;}
       .card .brand {font-size: 13px; color: var(--lotte-red); font-weight: 800; margin-bottom: 8px;}
       .card h3 {font-size: 17px; margin: 0 0 10px; line-height: 1.35;}
       .meta {font-size: 12px; color: var(--muted); line-height: 1.6;}
@@ -360,10 +355,19 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
             location = html.escape(clean_text(item.get("Location")))
             date_text = format_date_range(item.get("Start_Date"), item.get("End_Date"))
             detail_url = html.escape(clean_text(item.get("Detail_URL")) or url)
+            image_url = html.escape(clean_text(item.get("Image_URL")))
+            alt_text = html.escape(f"{brand} {title}".strip())
+            image_html = (
+                f"<div class='thumb'><img src='{image_url}' alt='{alt_text}' loading='lazy' referrerpolicy='no-referrer'></div>"
+                if image_url
+                else ""
+            )
 
             body.extend(
                 [
                     "<article class='card'>",
+                    image_html,
+                    "<div class='card-body'>",
                     f"<div class='brand'>{brand}</div>",
                     f"<h3>{title}</h3>",
                     "<div class='meta'>",
@@ -372,6 +376,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     f"{'혜택: ' + benefit if benefit else ''}",
                     "</div>",
                     f"<div class='badge'><a href='{detail_url}' target='_blank'>Read more</a></div>",
+                    "</div>",
                     "</article>",
                 ]
             )
