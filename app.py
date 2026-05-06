@@ -683,7 +683,6 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
         "<div class='hero-content'>",
         "<div class='eyebrow'>Enjoy Your Time at LOTTE DEPARTMENT STORE</div>",
         f"<h1>Shopping Highlight</h1>",
-        f"<p>주요 브랜드별 행사와 사은 혜택을 안내드립니다</p>",
         f"<div class='chips'>{chips}</div>",
         "</div>",
         "</div>",
