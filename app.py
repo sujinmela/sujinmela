@@ -729,7 +729,7 @@ def build_highlight_html(settings: dict, sections_df: pd.DataFrame, events_df: p
                     f"<h3>{title}</h3>",
                     "<div class='meta'>",
                     f"{'기간: ' + html.escape(date_text) + '<br>' if date_text else ''}",
-                    f"{'위치: ' + location + '<br>' if location else ''}",
+                    f"{'장소: ' + location + '<br>' if location else ''}",
                     "</div>",
                     f"<div class='detail-link'><a href='{detail_url}' target='_blank'>Read more</a></div>",
                     "</div>",
