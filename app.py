@@ -6,14 +6,17 @@ import io
 import math
 import os
 import random
+import subprocess
 import textwrap
 import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
+from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 import qrcode
 import streamlit as st
@@ -34,6 +37,8 @@ APP_TITLE = "오늘의 운세 | LOTTE Department Store"
 STORY_SIZE = (1080, 1920)
 GENERATED_DIR = Path(__file__).resolve().parent / "generated"
 GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+FONT_DIR = Path(__file__).resolve().parent / ".fortune_fonts"
+FONT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass(frozen=True)
@@ -235,8 +240,152 @@ def make_download_url(base_url: str, result_id: str) -> str:
 # -----------------------------------------------------------------------------
 # Font helpers
 # -----------------------------------------------------------------------------
+# Korean text in the generated PNG is drawn with Pillow, not with browser CSS.
+# Therefore the server that runs Streamlit must have a Korean-capable TrueType/
+# OpenType font. The app checks, in order:
+#   1) explicit env vars FORTUNE_FONT / FORTUNE_BOLD_FONT
+#   2) local project folders such as ./assets/fonts
+#   3) fonts bundled by koreanize-matplotlib, if installed
+#   4) common Linux/macOS/Windows Korean fonts
+# Streamlit Cloud: add packages.txt with fonts-nanum or fonts-noto-cjk.
 
 _FONT_CACHE: dict[tuple[int, bool, str], ImageFont.FreeTypeFont | ImageFont.ImageFont] = {}
+_FONT_DEBUG_CACHE: dict[str, str] = {}
+_FONT_DOWNLOAD_FAILED: set[str] = set()
+
+# Runtime fallback for hosted environments without Korean system fonts.
+# The URLs point to open-source Nanum Gothic TTF files from the Google Fonts
+# repository/CDN. No font file is bundled in this project.
+NANUM_FONT_URLS = {
+    "regular": (
+        "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Regular.ttf",
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Regular.ttf",
+        "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Regular.ttf",
+    ),
+    "bold": (
+        "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/nanumgothic/NanumGothic-Bold.ttf",
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/nanumgothic/NanumGothic-Bold.ttf",
+        "https://github.com/google/fonts/raw/main/ofl/nanumgothic/NanumGothic-Bold.ttf",
+    ),
+}
+
+
+def _valid_font_file(path: Path) -> bool:
+    return path.exists() and path.is_file() and path.stat().st_size > 100_000
+
+
+def _download_font(kind: str) -> str | None:
+    """Download a Korean TTF font when the deployment image has no CJK font."""
+    target = FONT_DIR / ("NanumGothicBold.ttf" if kind == "bold" else "NanumGothic.ttf")
+    if _valid_font_file(target):
+        return str(target)
+    if kind in _FONT_DOWNLOAD_FAILED:
+        return None
+
+    for url in NANUM_FONT_URLS[kind]:
+        try:
+            req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urlopen(req, timeout=12) as response:
+                data = response.read()
+            if len(data) < 100_000:
+                continue
+            tmp = target.with_suffix(".tmp")
+            tmp.write_bytes(data)
+            ImageFont.truetype(str(tmp), size=24)  # validation
+            tmp.replace(target)
+            return str(target)
+        except Exception:
+            continue
+
+    _FONT_DOWNLOAD_FAILED.add(kind)
+    return None
+
+
+
+def _existing(paths: Iterable[str]) -> list[str]:
+    found: list[str] = []
+    for raw in paths:
+        if not raw:
+            continue
+        try:
+            path = str(raw)
+            if Path(path).exists():
+                found.append(path)
+        except Exception:
+            continue
+    return found
+
+
+def _project_font_candidates(bold: bool = False, family: str = "sans") -> list[str]:
+    base = Path(__file__).resolve().parent
+    names_regular = (
+        "NanumGothic.ttf",
+        "NanumSquareR.ttf",
+        "NanumBarunGothic.ttf",
+        "NotoSansKR-Regular.otf",
+        "NotoSansCJK-Regular.ttc",
+        "Pretendard-Regular.ttf",
+    )
+    names_bold = (
+        "NanumGothicBold.ttf",
+        "NanumSquareB.ttf",
+        "NanumBarunGothicBold.ttf",
+        "NotoSansKR-Bold.otf",
+        "NotoSansCJK-Bold.ttc",
+        "Pretendard-Bold.ttf",
+    )
+    names_serif = (
+        "NanumMyeongjo.ttf",
+        "NanumMyeongjoBold.ttf",
+        "NotoSerifCJK-Regular.ttc",
+        "NotoSerifKR-Regular.otf",
+    )
+    selected = names_serif if family == "serif" else (names_bold if bold else names_regular)
+    roots = (
+        FONT_DIR,
+        base,
+        base / "assets",
+        base / "asset",
+        base / "fonts",
+        base / "assets" / "fonts",
+    )
+    return [str(root / name) for root in roots for name in selected]
+
+
+def _koreanize_matplotlib_candidates(bold: bool = False) -> list[str]:
+    names = ("NanumGothicBold.ttf", "NanumSquareB.ttf") if bold else ("NanumGothic.ttf", "NanumSquareR.ttf")
+    candidates: list[str] = []
+    try:
+        font_dir = importlib_resources.files("koreanize_matplotlib") / "fonts"
+        for name in names:
+            candidates.append(str(font_dir / name))
+    except Exception:
+        pass
+    return candidates
+
+
+def _fontconfig_match(query: str) -> str | None:
+    """Return a font path from fontconfig when available.
+
+    Streamlit Cloud/Linux images do not always have Korean fonts installed by
+    default. When fonts-nanum or fonts-noto-cjk is installed through packages.txt,
+    fc-match gives us the exact path, even if the distro stores it differently.
+    """
+    try:
+        completed = subprocess.run(
+            ["fc-match", "-f", "%{file}", query],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=1.5,
+        )
+        candidate = completed.stdout.strip()
+        if candidate and Path(candidate).exists():
+            return candidate
+    except Exception:
+        return None
+    return None
 
 
 def _font_candidates(bold: bool = False, family: str = "sans") -> list[str]:
@@ -246,6 +395,12 @@ def _font_candidates(bold: bool = False, family: str = "sans") -> list[str]:
     if env_path:
         candidates.append(env_path)
 
+    candidates.extend(_project_font_candidates(bold=bold, family=family))
+    if family != "serif":
+        candidates.extend(_koreanize_matplotlib_candidates(bold=bold))
+
+    # English script title only. This font is intentionally not used as the
+    # Korean fallback, because DejaVu renders Hangul as square tofu boxes.
     if family == "serif":
         candidates.extend(
             [
@@ -254,35 +409,77 @@ def _font_candidates(bold: bool = False, family: str = "sans") -> list[str]:
                 "C:/Windows/Fonts/georgiai.ttf",
             ]
         )
+        return candidates
+
+    # Ask fontconfig first. This makes the app resilient across Ubuntu,
+    # Streamlit Cloud, Docker images, and managed Linux servers.
+    fc_queries = (
+        [
+            "NanumGothic:style=Bold",
+            "NanumBarunGothic:style=Bold",
+            "NanumSquareRound:style=Bold",
+            "Noto Sans CJK KR:style=Bold",
+            "Noto Sans KR:style=Bold",
+            "Apple SD Gothic Neo:style=Bold",
+            "Malgun Gothic:style=Bold",
+        ]
+        if bold
+        else [
+            "NanumGothic:style=Regular",
+            "NanumBarunGothic:style=Regular",
+            "NanumSquareRound:style=Regular",
+            "Noto Sans CJK KR:style=Regular",
+            "Noto Sans KR:style=Regular",
+            "Apple SD Gothic Neo:style=Regular",
+            "Malgun Gothic:style=Regular",
+        ]
+    )
+    for query in fc_queries:
+        found = _fontconfig_match(query)
+        if found:
+            candidates.append(found)
 
     if bold:
         candidates.extend(
             [
                 "/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumBarunGothicBold.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumSquareB.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumSquareRoundB.ttf",
                 "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
                 "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
                 "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Bold.otf",
                 "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+                "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
                 "/Library/Fonts/NanumGothicBold.ttf",
                 "C:/Windows/Fonts/malgunbd.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
             ]
         )
     else:
         candidates.extend(
             [
                 "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumBarunGothic.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumSquareR.ttf",
+                "/usr/share/fonts/truetype/nanum/NanumSquareRoundR.ttf",
                 "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
                 "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
                 "/usr/share/fonts/opentype/noto/NotoSansCJKkr-Regular.otf",
                 "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+                "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
                 "/Library/Fonts/NanumGothic.ttf",
                 "C:/Windows/Fonts/malgun.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             ]
         )
-    return candidates
 
+    # Remove duplicates while preserving order.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in candidates:
+        if item not in seen:
+            unique.append(item)
+            seen.add(item)
+    return unique
 
 def font(size: int, bold: bool = False, family: str = "sans") -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     key = (size, bold, family)
@@ -293,12 +490,43 @@ def font(size: int, bold: bool = False, family: str = "sans") -> ImageFont.FreeT
             if Path(path).exists():
                 loaded = ImageFont.truetype(path, size=size)
                 _FONT_CACHE[key] = loaded
+                _FONT_DEBUG_CACHE[f"{family}:{'bold' if bold else 'regular'}"] = path
                 return loaded
         except Exception:
             continue
+    if family != "serif":
+        downloaded = _download_font("bold" if bold else "regular")
+        if downloaded:
+            loaded = ImageFont.truetype(downloaded, size=size)
+            _FONT_CACHE[key] = loaded
+            _FONT_DEBUG_CACHE[f"{family}:{'bold' if bold else 'regular'}"] = downloaded
+            return loaded
+        if bold:
+            downloaded_regular = _download_font("regular")
+            if downloaded_regular:
+                loaded = ImageFont.truetype(downloaded_regular, size=size)
+                _FONT_CACHE[key] = loaded
+                _FONT_DEBUG_CACHE[f"{family}:{'bold' if bold else 'regular'}"] = downloaded_regular
+                return loaded
+
     loaded = ImageFont.load_default()
     _FONT_CACHE[key] = loaded
+    _FONT_DEBUG_CACHE[f"{family}:{'bold' if bold else 'regular'}"] = "Pillow default font - Korean unsupported"
     return loaded
+
+
+def get_active_font_paths() -> dict[str, str]:
+    # Prime the cache so the UI can show a useful diagnostic message.
+    font(20, False)
+    font(20, True)
+    return dict(_FONT_DEBUG_CACHE)
+
+
+def has_server_korean_font() -> bool:
+    paths = []
+    paths.extend(_font_candidates(False, "sans"))
+    paths.extend(_font_candidates(True, "sans"))
+    return bool(_existing(paths))
 
 
 def text_bbox(draw: ImageDraw.ImageDraw, text: str, fnt: ImageFont.ImageFont) -> tuple[int, int, int, int]:
@@ -1167,6 +1395,16 @@ def show_download_page(result_id: str) -> None:
 def main_app() -> None:
     cleanup_old_results()
     inject_css()
+
+    if not has_server_korean_font():
+        st.warning(
+            "서버에 한글 폰트가 없어 결과 이미지의 한글이 깨질 수 있습니다. "
+            "Streamlit Cloud라면 저장소에 packages.txt를 추가하고 fonts-nanum 또는 fonts-noto-cjk를 설치해 주세요."
+        )
+    else:
+        with st.sidebar.expander("폰트 진단", expanded=False):
+            st.caption("결과 이미지 생성에 사용 중인 서버 폰트")
+            st.code("\n".join(f"{k}: {v}" for k, v in get_active_font_paths().items()))
 
     query = get_query_params()
     result_id = first_query_value(query.get("rid"))
