@@ -1,8 +1,10 @@
-# app.py
 import streamlit as st
 from datetime import datetime
 import random
 
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
 st.set_page_config(
     page_title="오늘의 라이프스타일 운세",
     page_icon="✨",
@@ -10,7 +12,7 @@ st.set_page_config(
 )
 
 # -----------------------------
-# Mock fortune data
+# DATA
 # -----------------------------
 FORTUNE_MESSAGES = [
     "새로운 스타일 변화가 행운을 부르는 하루예요.",
@@ -21,90 +23,198 @@ FORTUNE_MESSAGES = [
 ]
 
 LUCKY_COLORS = [
-    "Gold", "Sky Blue", "Lavender", "Emerald", "Black", "Pink"
+    "Pink",
+    "Gold",
+    "Lavender",
+    "Sky Blue",
+    "Emerald",
+    "Black"
 ]
 
 LUCKY_ITEMS = [
-    "향수", "가방", "스니커즈", "디저트", "커피", "액세서리"
+    "액세서리",
+    "향수",
+    "가방",
+    "스니커즈",
+    "디저트",
+    "커피"
 ]
 
 SHOPPING_TYPES = [
+    "럭셔리 취향형",
     "감성 소비형",
     "트렌드 리더형",
     "미니멀 쇼퍼형",
-    "럭셔리 취향형",
-    "플렉스형",
+    "플렉스형"
+]
+
+TIPS = [
+    "오늘은 자신을 위한 작은 선물을 준비해보세요.",
+    "새로운 브랜드를 둘러보면 좋은 영감을 얻을 수 있어요.",
+    "밝은 컬러 아이템이 오늘의 기운을 높여줄 거예요.",
+    "감각적인 액세서리가 당신의 분위기를 완성해줄 거예요."
 ]
 
 # -----------------------------
-# Styling
+# STYLE
 # -----------------------------
 st.markdown("""
-    <style>
-    .main {
-        background-color: #faf8f5;
-    }
+<style>
 
-    .title {
-        text-align:center;
-        font-size:42px;
-        font-weight:700;
-        margin-top:10px;
-        color:#222;
-    }
+.stApp {
+    background: linear-gradient(to bottom, #fffaf7, #ffffff);
+}
 
-    .subtitle {
-        text-align:center;
-        color:#666;
-        margin-bottom:40px;
-    }
+/* Title */
+.main-title {
+    text-align: center;
+    font-size: 46px;
+    font-weight: 800;
+    color: #222;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
 
-    .fortune-card {
-        padding:30px;
-        border-radius:20px;
-        background:white;
-        box-shadow:0 4px 20px rgba(0,0,0,0.08);
-        margin-top:20px;
-    }
+.sub-title {
+    text-align: center;
+    color: #888;
+    font-size: 18px;
+    margin-bottom: 40px;
+}
 
-    .fortune-title {
-        font-size:28px;
-        font-weight:700;
-        margin-bottom:20px;
-    }
+/* Card */
+.fortune-card {
+    background: white;
+    padding: 40px;
+    border-radius: 28px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    border: 1px solid #f5e8ea;
+    margin-top: 30px;
+}
 
-    .fortune-item {
-        font-size:18px;
-        margin-bottom:12px;
-    }
+/* Result Title */
+.fortune-title {
+    font-size: 34px;
+    font-weight: 800;
+    margin-bottom: 30px;
+    color: #222;
+}
 
-    .footer {
-        text-align:center;
-        color:#999;
-        margin-top:40px;
-        font-size:13px;
-    }
-    </style>
+/* Message Box */
+.message-box {
+    background: linear-gradient(135deg, #fff7fa, #fff3f1);
+    padding: 28px;
+    border-radius: 20px;
+    margin-bottom: 25px;
+}
+
+.message-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ff6f91;
+    margin-bottom: 12px;
+}
+
+.message-content {
+    font-size: 28px;
+    line-height: 1.6;
+    font-weight: 700;
+    color: #333;
+}
+
+/* Grid */
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+/* Item Card */
+.item-card {
+    background: #fffafa;
+    padding: 22px;
+    border-radius: 20px;
+    border: 1px solid #f7eaea;
+}
+
+.item-title {
+    font-size: 15px;
+    color: #ff7b9c;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.item-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.item-desc {
+    color: #777;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+/* Button */
+.stButton > button {
+    width: 100%;
+    height: 56px;
+    border-radius: 16px;
+    border: none;
+    background: linear-gradient(90deg, #ff8fb1, #ffb38a);
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    transition: 0.3s;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    opacity: 0.95;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: #999;
+    margin-top: 40px;
+    font-size: 13px;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
 # -----------------------------
-# Header
+# HEADER
 # -----------------------------
 st.markdown(
-    "<div class='title'>✨ 오늘의 라이프스타일 운세 ✨</div>",
+    """
+    <div class="main-title">
+        ✨ 오늘의 라이프스타일 운세 ✨
+    </div>
+    """,
     unsafe_allow_html=True
 )
 
 st.markdown(
-    "<div class='subtitle'>백화점 체험 이벤트 · 쇼핑 운세 테스트</div>",
+    """
+    <div class="sub-title">
+        백화점 고객 체험 이벤트
+    </div>
+    """,
     unsafe_allow_html=True
 )
 
 # -----------------------------
-# Input form
+# FORM
 # -----------------------------
 with st.form("fortune_form"):
+
     name = st.text_input("이름")
+
     birth = st.date_input(
         "생년월일",
         min_value=datetime(1950, 1, 1),
@@ -112,7 +222,7 @@ with st.form("fortune_form"):
     )
 
     birth_time = st.selectbox(
-        "출생 시간 (선택)",
+        "출생 시간",
         [
             "모름",
             "00:00~01:59",
@@ -133,9 +243,10 @@ with st.form("fortune_form"):
     submitted = st.form_submit_button("운세 확인하기")
 
 # -----------------------------
-# Generate result
+# RESULT
 # -----------------------------
 if submitted:
+
     seed = int(birth.strftime("%Y%m%d")) + len(name)
     random.seed(seed)
 
@@ -143,49 +254,76 @@ if submitted:
     color = random.choice(LUCKY_COLORS)
     item = random.choice(LUCKY_ITEMS)
     shopping_type = random.choice(SHOPPING_TYPES)
+    tip = random.choice(TIPS)
 
-    st.markdown(
-        f"""
-        <div class="fortune-card">
-            <div class="fortune-title">
-                {name}님의 오늘 운세
+    html = f"""
+    <div class="fortune-card">
+
+        <div class="fortune-title">
+            {name}님의 오늘 운세
+        </div>
+
+        <div class="message-box">
+            <div class="message-title">
+                💫 오늘의 메시지
             </div>
 
-            <div class="fortune-item">
-                💫 <b>오늘의 메시지</b><br>
-                {fortune}
-            </div>
-
-            <div class="fortune-item">
-                🎨 <b>럭키 컬러</b><br>
-                {color}
-            </div>
-
-            <div class="fortune-item">
-                🛍️ <b>추천 쇼핑 아이템</b><br>
-                {item}
-            </div>
-
-            <div class="fortune-item">
-                ✨ <b>소비 성향</b><br>
-                {shopping_type}
+            <div class="message-content">
+                "{fortune}"
             </div>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
 
-    st.success("오늘의 운세가 생성되었어요!")
+        <div class="grid">
 
+            <div class="item-card">
+                <div class="item-title">🎨 럭키 컬러</div>
+                <div class="item-value">{color}</div>
+                <div class="item-desc">
+                    오늘 당신의 분위기를 더욱 빛내줄 컬러예요.
+                </div>
+            </div>
+
+            <div class="item-card">
+                <div class="item-title">🛍️ 추천 쇼핑 아이템</div>
+                <div class="item-value">{item}</div>
+                <div class="item-desc">
+                    오늘의 쇼핑 운을 높여줄 아이템이에요.
+                </div>
+            </div>
+
+            <div class="item-card">
+                <div class="item-title">✨ 소비 성향</div>
+                <div class="item-value">{shopping_type}</div>
+                <div class="item-desc">
+                    지금의 감각과 취향을 보여주는 타입이에요.
+                </div>
+            </div>
+
+            <div class="item-card">
+                <div class="item-title">⭐ 오늘의 한 줄 조언</div>
+                <div class="item-value">Lucky Tip</div>
+                <div class="item-desc">
+                    {tip}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+    """
+
+    st.markdown(html, unsafe_allow_html=True)
+
+    st.success("오늘의 운세가 생성되었어요 ✨")
     st.balloons()
 
 # -----------------------------
-# Footer
+# FOOTER
 # -----------------------------
 st.markdown(
     """
     <div class="footer">
-    ※ 본 콘텐츠는 이벤트 체험용이며 재미 요소를 포함하고 있습니다.
+        ※ 본 콘텐츠는 이벤트 체험용 라이프스타일 운세입니다.
     </div>
     """,
     unsafe_allow_html=True
