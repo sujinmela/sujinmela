@@ -3,9 +3,7 @@ import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import qrcode
 from io import BytesIO
-import base64
 import random
-from datetime import datetime
 
 st.set_page_config(page_title="백화점 사주 이벤트", layout="centered")
 
@@ -37,64 +35,69 @@ FORTUNES = {
     }
 }
 
-def make_result(name, birth):
+def make_result(name, birth, gender, birth_time):
     keys = list(FORTUNES.keys())
-    seed = sum([ord(c) for c in name + birth])
+    seed = sum([ord(c) for c in name + birth + gender + birth_time])
     random.seed(seed)
     return FORTUNES[random.choice(keys)]
 
-def generate_story_image(name, birth, result):
+def draw_shopping_background(draw, width, height):
+    items = ["🛍", "👠", "💄", "⌚", "🕶", "👗", "🎁"]
+    for y in range(0, height, 180):
+        for x in range(0, width, 180):
+            item = random.choice(items)
+            draw.text((x + 20, y + 20), item, fill=(255,255,255), font=None)
+
+def generate_story_image(name, birth, gender, birth_time, result):
     width, height = 1080, 1920
     img = Image.new("RGB", (width, height), result["color"])
     draw = ImageDraw.Draw(img)
 
+    draw_shopping_background(draw, width, height)
+
     try:
-        title_font = ImageFont.truetype("arial.ttf", 72)
+        title_font = ImageFont.truetype("arial.ttf", 70)
         body_font = ImageFont.truetype("arial.ttf", 42)
-        small_font = ImageFont.truetype("arial.ttf", 32)
+        small_font = ImageFont.truetype("arial.ttf", 28)
     except:
         title_font = ImageFont.load_default()
         body_font = ImageFont.load_default()
         small_font = ImageFont.load_default()
 
-    draw.rounded_rectangle((80, 120, 1000, 1500), radius=40, fill="white")
+    draw.rounded_rectangle((70, 120, 1010, 1540), radius=50, fill="white")
 
     draw.text((120, 180), f"{name}님의 오늘의 사주", fill="black", font=title_font)
 
-    draw.text(
-        (120, 420),
-        f"생년월일\n{birth}",
-        fill="#333333",
-        font=body_font
-    )
+    info = f"생년월일: {birth}\n성별: {gender}\n태어난 시간: {birth_time}"
+    draw.text((120, 420), info, fill="#444444", font=body_font)
 
     draw.text(
-        (120, 700),
+        (120, 760),
         f"✨ 오늘의 운세\n\n{result['luck']}",
         fill="#111111",
         font=body_font
     )
 
     draw.text(
-        (120, 1050),
+        (120, 1120),
         f"🛍 추천 쇼핑 테마\n\n{result['shopping']}",
         fill=result["color"],
         font=body_font
     )
 
     draw.text(
-        (120, 1350),
-        "#백화점이벤트 #오늘의운세 #쇼핑운세",
-        fill="#666666",
+        (120, 1440),
+        "#오늘의운세 #백화점이벤트 #쇼핑운세",
+        fill="#777777",
         font=small_font
     )
 
     qr = qrcode.make("https://your-event-download-page.com")
     qr = qr.resize((220, 220))
-    img.paste(qr, (760, 1580))
+    img.paste(qr, (760, 1630))
 
     draw.text(
-        (120, 1660),
+        (110, 1710),
         "QR을 스캔하면 결과 이미지를 다운로드할 수 있어요",
         fill="white",
         font=small_font
@@ -102,21 +105,52 @@ def generate_story_image(name, birth, result):
 
     return img
 
-st.title("🔮 백화점 사주 체험 이벤트")
-st.caption("오늘의 운세와 쇼핑 테마를 확인해보세요!")
+st.markdown(
+    '''
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    }
+    .main-title {
+        text-align:center;
+        color:white;
+        font-size:48px;
+        font-weight:bold;
+        margin-bottom:10px;
+    }
+    .sub {
+        text-align:center;
+        color:white;
+        margin-bottom:30px;
+    }
+    </style>
+    ''',
+    unsafe_allow_html=True
+)
+
+st.markdown('<div class="main-title">🔮 백화점 사주 체험</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub">오늘의 운세와 쇼핑 테마를 확인해보세요</div>', unsafe_allow_html=True)
 
 with st.form("fortune_form"):
     name = st.text_input("이름")
+    gender = st.selectbox("성별", ["여성", "남성"])
     birth = st.text_input("생년월일", placeholder="1995.05.20")
-    submitted = st.form_submit_button("운세 보기")
+    birth_time = st.selectbox(
+        "태어난 시간",
+        ["모름", "00~02시", "02~04시", "04~06시", "06~08시",
+         "08~10시", "10~12시", "12~14시", "14~16시",
+         "16~18시", "18~20시", "20~22시", "22~24시"]
+    )
+
+    submitted = st.form_submit_button("✨ 운세 확인하기")
 
 if submitted and name and birth:
-    result = make_result(name, birth)
+    result = make_result(name, birth, gender, birth_time)
 
     st.success(result["luck"])
-    st.markdown(f"### 🛍 추천 쇼핑 테마: {result['shopping']}")
+    st.markdown(f"## 🛍 추천 쇼핑 테마: {result['shopping']}")
 
-    image = generate_story_image(name, birth, result)
+    image = generate_story_image(name, birth, gender, birth_time, result)
 
     buf = BytesIO()
     image.save(buf, format="PNG")
@@ -131,12 +165,12 @@ if submitted and name and birth:
     )
 
     st.markdown("---")
-    st.markdown("### 이벤트 운영 아이디어")
+    st.markdown("### 💡 이벤트 운영 아이디어")
     st.markdown(
         '''
-        - 고객이 직접 운세 결과를 인스타 스토리에 업로드
-        - 특정 해시태그 업로드 시 경품 응모
-        - 쇼핑 테마 기반 매장 쿠폰 연결
-        - QR 랜딩 페이지에서 멤버십 가입 유도
+        - 인스타 스토리 업로드 이벤트 연동
+        - 층별 추천 브랜드 자동 연결
+        - 럭키 쿠폰 랜덤 지급
+        - QR 랜딩 페이지에서 회원가입 유도
         '''
     )
