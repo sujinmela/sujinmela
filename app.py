@@ -256,75 +256,89 @@ if submitted:
     shopping_type = random.choice(SHOPPING_TYPES)
     tip = random.choice(TIPS)
 
-    html = f"""
-    <div class="fortune-card">
+    # 메인 카드
+    st.markdown(f"""
+    <div style="
+        background:white;
+        padding:35px;
+        border-radius:24px;
+        box-shadow:0 8px 24px rgba(0,0,0,0.08);
+        margin-top:30px;
+    ">
+        <h1 style="
+            font-size:38px;
+            font-weight:800;
+            color:#222;
+        ">
+            ✨ {name}님의 오늘 운세
+        </h1>
 
-        <div class="fortune-title">
-            {name}님의 오늘 운세
-        </div>
-
-        <div class="message-box">
-            <div class="message-title">
+        <div style="
+            background:linear-gradient(135deg,#fff5f7,#fff0ec);
+            padding:24px;
+            border-radius:18px;
+            margin-top:20px;
+        ">
+            <p style="
+                color:#ff6f91;
+                font-size:16px;
+                font-weight:700;
+            ">
                 💫 오늘의 메시지
-            </div>
+            </p>
 
-            <div class="message-content">
+            <p style="
+                font-size:30px;
+                font-weight:800;
+                color:#333;
+                line-height:1.6;
+            ">
                 "{fortune}"
-            </div>
+            </p>
         </div>
-
-        <div class="grid">
-
-            <div class="item-card">
-                <div class="item-title">🎨 럭키 컬러</div>
-                <div class="item-value">{color}</div>
-                <div class="item-desc">
-                    오늘 당신의 분위기를 더욱 빛내줄 컬러예요.
-                </div>
-            </div>
-
-            <div class="item-card">
-                <div class="item-title">🛍️ 추천 쇼핑 아이템</div>
-                <div class="item-value">{item}</div>
-                <div class="item-desc">
-                    오늘의 쇼핑 운을 높여줄 아이템이에요.
-                </div>
-            </div>
-
-            <div class="item-card">
-                <div class="item-title">✨ 소비 성향</div>
-                <div class="item-value">{shopping_type}</div>
-                <div class="item-desc">
-                    지금의 감각과 취향을 보여주는 타입이에요.
-                </div>
-            </div>
-
-            <div class="item-card">
-                <div class="item-title">⭐ 오늘의 한 줄 조언</div>
-                <div class="item-value">Lucky Tip</div>
-                <div class="item-desc">
-                    {tip}
-                </div>
-            </div>
-
-        </div>
-
     </div>
-    """
+    """, unsafe_allow_html=True)
 
-    st.markdown(html, unsafe_allow_html=True)
+    # 카드 4개
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.info(f"""
+🎨 럭키 컬러
+
+# {color}
+
+오늘 당신의 분위기를 더욱 빛내줄 컬러예요.
+""")
+
+    with col2:
+        st.success(f"""
+🛍️ 추천 쇼핑 아이템
+
+# {item}
+
+오늘의 쇼핑 운을 높여줄 아이템이에요.
+""")
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.warning(f"""
+✨ 소비 성향
+
+# {shopping_type}
+
+지금의 감각과 취향을 보여주는 타입이에요.
+""")
+
+    with col4:
+        st.error(f"""
+⭐ 오늘의 한 줄 조언
+
+# Lucky Tip
+
+{tip}
+""")
 
     st.success("오늘의 운세가 생성되었어요 ✨")
     st.balloons()
-
-# -----------------------------
-# FOOTER
-# -----------------------------
-st.markdown(
-    """
-    <div class="footer">
-        ※ 본 콘텐츠는 이벤트 체험용 라이프스타일 운세입니다.
-    </div>
-    """,
-    unsafe_allow_html=True
-)
