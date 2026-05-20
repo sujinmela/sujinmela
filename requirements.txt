@@ -2,4 +2,3 @@
 streamlit
 pillow
 qrcode
-requests
