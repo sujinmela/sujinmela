@@ -5,155 +5,171 @@ from io import BytesIO
 import qrcode
 import random
 import os
+import base64
 
-st.set_page_config(page_title="럭셔리 쇼핑 운세", layout="wide")
+st.set_page_config(page_title="백화점 오늘의 운세", layout="wide")
 
 FORTUNES = [
     {
-        "message": "새로운 스타일 변화가 행운을 부르는 하루예요.",
-        "detail": "작은 소비가 당신을 더 빛나게 만들어줄 거예요.",
-        "shopping": "럭셔리 액세서리 & 주얼리",
-        "brand": "DIOR · TAMBURINS · TIFFANY",
-        "item": "골드 목걸이",
-        "color": "핑크 베이지",
-        "score": 88,
-        "spot": "패션관 2F",
-        "tip": "오늘은 나를 위한 작은 선물이 좋은 흐름을 만들어요 ✨",
-        "bg": "#F9E7EA"
+        "title":"새로운 스타일 변화가 행운을 부르는 하루예요.",
+        "detail":"작은 소비가 당신을 더 빛나게 만들어줄 거예요.",
+        "shopping":"럭셔리 액세서리 & 주얼리",
+        "brands":"DIOR · TIFFANY · TAMBURINS",
+        "item":"골드 목걸이",
+        "lucky_color":"핑크 베이지",
+        "spot":"패션관 2F",
+        "score":"88",
+        "tip":"오늘은 나를 위한 작은 선물이 좋은 흐름을 만들어요 ✨",
+        "bg":"#FCECEF"
     },
     {
-        "message": "안정적인 소비가 만족도를 높여주는 날이에요.",
-        "detail": "집 안 분위기를 바꾸는 쇼핑이 좋은 에너지를 가져와요.",
-        "shopping": "리빙 · 프리미엄 홈데코",
-        "brand": "ZARA HOME · BALMUDA · TEKLA",
-        "item": "무드 조명",
-        "color": "크림 화이트",
-        "score": 79,
-        "spot": "리빙관 5F",
-        "tip": "편안함을 위한 소비가 오늘의 포인트예요 🌿",
-        "bg": "#EFE5D8"
+        "title":"감각적인 소비가 좋은 에너지를 만드는 날이에요.",
+        "detail":"트렌디한 아이템이 오늘의 분위기를 완성해줄 거예요.",
+        "shopping":"뷰티 · 향수 · 프리미엄 패션",
+        "brands":"CHANEL · AESOP · GENTLE MONSTER",
+        "item":"프리미엄 향수",
+        "lucky_color":"로즈 핑크",
+        "spot":"뷰티관 1F",
+        "score":"93",
+        "tip":"오늘은 새로운 스타일 도전이 행운을 불러와요 💖",
+        "bg":"#FFF4F7"
     }
 ]
 
 def get_font(size):
-    font_candidates = [
-        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/System/Library/Fonts/AppleSDGothicNeo.ttc",
-        "C:/Windows/Fonts/malgun.ttf"
-    ]
+    font_path = "fonts/NanumGothic.otf"
 
-    for path in font_candidates:
-        if os.path.exists(path):
-            return ImageFont.truetype(path, size)
+    if os.path.exists(font_path):
+        return ImageFont.truetype(font_path, size)
 
     return ImageFont.load_default()
 
-def create_story(name, gender, birth, birth_time, result):
-    width, height = 1080, 1920
+def create_story_image(name, gender, birth, birth_time, result):
 
+    width, height = 1080, 1920
     img = Image.new("RGB", (width, height), result["bg"])
     draw = ImageDraw.Draw(img)
 
-    title_font = get_font(70)
-    sub_font = get_font(38)
+    title_font = get_font(72)
+    sub_font = get_font(42)
     small_font = get_font(28)
+    medium_font = get_font(34)
 
-    draw.rounded_rectangle((50, 70, 1030, 1840), radius=40, fill="white")
+    draw.rounded_rectangle((40,40,1040,1880), radius=40, fill="white")
 
-    draw.text((120, 120), "✨ 오늘의 라이프스타일 운세 ✨", fill="#D87093", font=small_font)
-    draw.text((120, 200), f"{name}님의 오늘 운세", fill="#222222", font=title_font)
+    draw.text((120,120), "✨ 오늘의 라이프스타일 운세 ✨", fill="#E06C9F", font=small_font)
+    draw.text((120,200), f"{name}님의 오늘 운세", fill="#3A2E39", font=title_font)
 
-    draw.rounded_rectangle((100, 360, 980, 720), radius=35, fill=result["bg"])
+    draw.rounded_rectangle((90,380,990,760), radius=35, fill="#FFF3F6")
 
-    draw.text((140, 430), result["message"], fill="#222222", font=sub_font)
-    draw.text((140, 560), result["detail"], fill="#666666", font=small_font)
+    draw.text((130,450), result["title"], fill="#222222", font=sub_font)
+    draw.text((130,580), result["detail"], fill="#666666", font=small_font)
 
-    draw.rounded_rectangle((100, 800, 460, 1080), radius=30, fill="#FFF4F7")
-    draw.text((150, 860), "🎨 럭키 컬러", fill="#FF69B4", font=small_font)
-    draw.text((150, 950), result["color"], fill="#222222", font=sub_font)
+    draw.rounded_rectangle((90,820,500,1080), radius=30, fill="#FFF5FA")
+    draw.text((130,870), "🎨 럭키 컬러", fill="#FF69B4", font=small_font)
+    draw.text((130,960), result["lucky_color"], fill="#222222", font=medium_font)
 
-    draw.rounded_rectangle((620, 800, 980, 1080), radius=30, fill="#F7F1FF")
-    draw.text((670, 860), "🛍 추천 아이템", fill="#8A2BE2", font=small_font)
-    draw.text((670, 950), result["item"], fill="#222222", font=sub_font)
+    draw.rounded_rectangle((580,820,990,1080), radius=30, fill="#F8F1FF")
+    draw.text((620,870), "🛍 추천 아이템", fill="#8A2BE2", font=small_font)
+    draw.text((620,960), result["item"], fill="#222222", font=medium_font)
 
-    draw.rounded_rectangle((100, 1160, 980, 1410), radius=30, fill="#FFF8F0")
-    draw.text((140, 1220), "✨ 추천 쇼핑 테마", fill="#FF8C00", font=small_font)
-    draw.text((140, 1290), result["shopping"], fill="#222222", font=sub_font)
-    draw.text((140, 1360), result["brand"], fill="#666666", font=small_font)
+    draw.rounded_rectangle((90,1160,990,1420), radius=30, fill="#FFF8F0")
+    draw.text((130,1220), "✨ 추천 쇼핑 테마", fill="#FF8C00", font=small_font)
+    draw.text((130,1290), result["shopping"], fill="#222222", font=medium_font)
+    draw.text((130,1360), result["brands"], fill="#666666", font=small_font)
 
-    draw.rounded_rectangle((100, 1470, 980, 1600), radius=30, fill="#F5FFF5")
-    draw.text((140, 1515), f"📍 추천 스팟 : {result['spot']}", fill="#228B22", font=sub_font)
+    draw.rounded_rectangle((90,1480,990,1610), radius=30, fill="#F4FFF4")
+    draw.text((130,1525), f"📍 추천 스팟 : {result['spot']}", fill="#228B22", font=medium_font)
 
-    draw.text((120, 1670), f"오늘의 행운 점수 : {result['score']}점", fill="#222222", font=sub_font)
+    draw.text((120,1680), f"오늘의 행운 점수 : {result['score']}점", fill="#222222", font=medium_font)
 
-    draw.text((120, 1740), result["tip"], fill="#666666", font=small_font)
+    draw.text((120,1760), result["tip"], fill="#666666", font=small_font)
 
     qr = qrcode.make("https://event-download-page.com")
-    qr = qr.resize((180, 180))
-    img.paste(qr, (830, 1660))
+    qr = qr.resize((180,180))
+    img.paste(qr, (830,1660))
 
     return img
 
 st.markdown("""
 <style>
 .stApp{
-background:linear-gradient(180deg,#FFF7F8,#FCECEF);
+background:linear-gradient(180deg,#FFF7F8,#FDECEF);
 }
-h1{
+
+.title{
 text-align:center;
-color:#D87093;
+font-size:56px;
+font-weight:700;
+color:#D85D8A;
+margin-bottom:10px;
 }
-.block-container{
-padding-top:2rem;
+
+.subtitle{
+text-align:center;
+color:#777;
+margin-bottom:40px;
+}
+
+.card{
+background:white;
+padding:30px;
+border-radius:30px;
+box-shadow:0 10px 30px rgba(0,0,0,0.08);
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1>💖 오늘의 쇼핑 운세</h1>", unsafe_allow_html=True)
+st.markdown('<div class="title">💖 오늘의 쇼핑 운세</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">백화점 라이프스타일 운세 이벤트</div>', unsafe_allow_html=True)
 
-col1, col2 = st.columns([1,1.2])
+left, right = st.columns([1,1.2])
 
-with col1:
+with left:
     st.markdown("### 🔮 사주 정보 입력")
 
     name = st.text_input("이름")
-    gender = st.radio("성별", ["여성", "남성"], horizontal=True)
+    gender = st.radio("성별", ["여성","남성"], horizontal=True)
+
     birth = st.text_input("생년월일", placeholder="1995.04.25")
 
     birth_time = st.selectbox(
         "태어난 시간",
         ["모름","00~02시","02~04시","04~06시","06~08시",
-         "08~10시","10~12시","12~14시","14~16시",
-         "16~18시","18~20시","20~22시","22~24시"]
+        "08~10시","10~12시","12~14시","14~16시",
+        "16~18시","18~20시","20~22시","22~24시"]
     )
 
-    btn = st.button("✨ 운세 결과 확인하기")
+    generate = st.button("✨ 운세 결과 확인하기")
 
-with col2:
+    st.markdown("---")
+    st.markdown("💡 결과 이미지는 인스타 스토리 업로드용으로 제작됩니다.")
+
+with right:
     st.markdown("### 📱 결과 이미지 미리보기")
-    st.info("인스타 스토리 업로드용 1080x1920 이미지로 생성됩니다.")
+    st.info("1080 x 1920 인스타 스토리 비율")
 
-if btn and name:
+if generate and name:
+
     random.seed(sum(ord(c) for c in name))
     result = random.choice(FORTUNES)
 
-    st.success(result["message"])
+    st.success(result["title"])
 
     c1,c2,c3,c4 = st.columns(4)
 
-    c1.metric("럭키 컬러", result["color"])
+    c1.metric("럭키 컬러", result["lucky_color"])
     c2.metric("추천 아이템", result["item"])
-    c3.metric("행운 점수", f"{result['score']}점")
+    c3.metric("행운 점수", result["score"])
     c4.metric("추천 스팟", result["spot"])
 
     st.markdown(f"### 🛍 추천 쇼핑 테마 : {result['shopping']}")
-    st.markdown(f"추천 브랜드 : **{result['brand']}**")
+    st.markdown(f"추천 브랜드 : **{result['brands']}**")
 
-    img = create_story(name, gender, birth, birth_time, result)
+    image = create_story_image(name, gender, birth, birth_time, result)
 
     buf = BytesIO()
-    img.save(buf, format="PNG")
+    image.save(buf, format="PNG")
 
     st.image(buf.getvalue(), use_container_width=True)
 
