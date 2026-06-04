@@ -3,12 +3,14 @@ import html
 import base64
 import re
 import mimetypes
+import requests
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+from bs4 import BeautifulSoup
 
 import pandas as pd
 import streamlit as st
-
 
 TEMPLATE_FILENAME = "lotte_highlight_lms_template.xlsx"
 DEFAULT_HERO_IMAGE_PATH = Path("hero_banner.jpg")
@@ -791,22 +793,206 @@ def build_export_excel(settings_df: pd.DataFrame, sections_df: pd.DataFrame, eve
     return output.getvalue()
 
 
+
+# ── URL 기반 LMS 자동생성 ────────────────────────────────────────────
+
+LMS_SYSTEM_PROMPT = """당신은 롯데백화점 마케팅팀의 LMS 광고 문안 전문가입니다.
+쇼핑 하이라이트 페이지 내용을 분석해 아래 형식으로 LMS 문안을 생성하세요.
+추가 설명 없이 순수 LMS 문안 텍스트만 출력합니다.
+
+=== 출력 형식 ===
+(광고)롯데백화점 {점포명}
+{고객명} 고객님 안녕하세요.
+이번주 롯데백화점 {점포명} 소식을 안내드립니다.
+
+
+[테마명] 테마 부제목
+① [브랜드명] 행사 내용
+② [브랜드명] 행사 내용
+[테마명] 테마 부제목
+① [브랜드명] 행사 내용
+...
+
+
+자세한 사항 및 더욱 다양한 소식은 하단의 링크를 통해 확인 가능합니다.
+{URL}
+문의전화 1577-0001
+무료수신거부 080-880-2626
+
+=== 규칙 ===
+- 인사말 뒤 빈 줄 2개, 마지막 행사 뒤 빈 줄 2개
+- 테마 헤더([Special Gift], [Cosmetic] 등)와 ①②③④⑤⑥⑦⑧ 번호 원문 그대로 유지
+- 각 테마당 주요 항목 최대 6개 (너무 많으면 대표적인 것만)
+- 브랜드명·행사명 오타 없이 원문 그대로
+- 순수 텍스트만 출력 (마크다운 불가)"""
+
+
+def fetch_highlight_from_url(url: str):
+    """URL에서 requests로 HTML 소스를 받아 행사 내용만 파싱. (text, error) 반환"""
+    try:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/124.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "ko-KR,ko;q=0.9",
+        }
+        resp = requests.get(url, headers=headers, timeout=15)
+        resp.raise_for_status()
+        resp.encoding = "utf-8"
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # 섹션 제목 + 행사 항목 추출
+        lines = []
+        sections = soup.find_all("h3")
+        for section in sections:
+            title = section.get_text(strip=True)
+            if not title:
+                continue
+            lines.append(title)
+            # 해당 섹션의 li 항목들
+            ul = section.find_next_sibling("ul")
+            if not ul:
+                # 형제가 아닌 경우 부모에서 탐색
+                parent = section.parent
+                ul = parent.find("ul") if parent else None
+            if ul:
+                items = ul.find_all("li")
+                for item in items:
+                    text = item.get_text(separator=" ", strip=True)
+                    # 불필요한 태그 텍스트 정리
+                    text = re.sub(r"사은\s*사은\s*종료|쇼핑뉴스\s*행사\s*종료", "", text).strip()
+                    text = re.sub(r"\s+", " ", text)
+                    if text:
+                        lines.append(text)
+            lines.append("")
+
+        result = "\n".join(lines).strip()
+
+        # 파싱 실패 시 body 전체 텍스트 fallback
+        if len(result) < 50:
+            body = soup.find("body")
+            result = body.get_text(separator="\n", strip=True) if body else ""
+
+        return result, ""
+
+    except requests.exceptions.ConnectionError:
+        return "", "네트워크 연결 오류입니다."
+    except requests.exceptions.Timeout:
+        return "", "페이지 로딩 시간이 초과됐습니다."
+    except Exception as e:
+        return "", f"페이지 읽기 실패: {e}"
+
+
+def generate_lms_ai(page_text: str, store: str, customer: str, url: str) -> str:
+    import anthropic
+    client = anthropic.Anthropic()
+    msg = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=1500,
+        system=LMS_SYSTEM_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"아래 쇼핑 하이라이트 내용으로 LMS 문안을 생성해 주세요.\n\n"
+                f"점포명: {store}\n고객명: {customer}\nURL: {url}\n\n"
+                f"=== 쇼핑 하이라이트 내용 ===\n{page_text}"
+            )
+        }],
+    )
+    return msg.content[0].text.strip()
+
+
+def tab_url_lms():
+    st.subheader("🔗 URL 입력 → LMS 문안 자동생성")
+    st.caption("쇼핑 하이라이트 URL만 입력하면 행사 내용을 자동으로 읽어 LMS 문안을 만들어 드립니다.")
+
+    STORES = {
+        "서울": ["본점","잠실점","강남점","건대스타시티점","관악점","김포공항점","노원점","미아점","영등포점","청량리점"],
+        "수도권": ["인천점","동탄점","구리점","수원점","안산점","일산점","중동점","평촌점"],
+        "지방": ["부산본점","광복점","광주점","대구점","대전점","동래점","상인점","센텀시티점","울산점","전주점","창원점","포항점"],
+    }
+    store_options = ["점포를 선택하세요"] + [s for g in STORES.values() for s in g]
+
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        url_input = st.text_input(
+            "쇼핑 하이라이트 URL",
+            placeholder="https://www.lotteshopping.com/shopnow/cntsList?shpgHhlghNo=SHH...&shpgHhlghAditNo=SHA...",
+        )
+    with col2:
+        store = st.selectbox("점포명", store_options)
+
+    customer = st.text_input("고객명 (미입력 시 '고객' 사용)", placeholder="예: 김롯데")
+
+    run = st.button("✨ LMS 문안 자동생성", type="primary", use_container_width=True)
+
+    if run:
+        if not url_input.strip():
+            st.warning("URL을 입력해 주세요.")
+            return
+        if store == "점포를 선택하세요":
+            st.warning("점포명을 선택해 주세요.")
+            return
+
+        customer_name = customer.strip() or "고객"
+
+        with st.spinner("페이지에서 행사 내용을 읽는 중..."):
+            page_text, err = fetch_highlight_from_url(url_input.strip())
+            if err:
+                st.error(f"❌ {err}")
+                return
+            if len(page_text) < 50:
+                st.error("행사 내용을 충분히 읽지 못했습니다. URL을 확인해 주세요.")
+                return
+
+        with st.spinner("AI가 LMS 문안을 작성하는 중..."):
+            try:
+                result = generate_lms_ai(page_text, store, customer_name, url_input.strip())
+                st.session_state["url_lms_result"] = result
+            except Exception as e:
+                st.error(f"LMS 생성 오류: {e}")
+                return
+
+    if st.session_state.get("url_lms_result"):
+        result = st.session_state["url_lms_result"]
+        result_len = len(result)
+        is_over = result_len > 1000
+
+        st.divider()
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            st.markdown("### 📨 생성된 LMS 문안")
+        with c2:
+            color = "red" if is_over else "green"
+            warn = "⚠ 권장 초과" if is_over else "✓ 적정"
+            st.markdown(
+                f'<div style="padding-top:26px;text-align:right;color:{color};font-weight:600">'
+                f'{result_len:,}자 {warn}</div>', unsafe_allow_html=True
+            )
+
+        st.text_area("복사용 LMS 문안", value=result, height=400, key="url_lms_copy")
+
+        if is_over:
+            st.warning(f"{result_len:,}자 — LMS 1,000자 제한 초과 가능. 항목 수를 줄여주세요.")
+
+
 def main():
-    st.set_page_config(page_title="하이라이트 & LMS 생성기", layout="wide")
+    st.set_page_config(page_title="롯데백화점 하이라이트 & LMS 생성기", layout="wide")
     st.title("롯데백화점 하이라이트 페이지 & LMS 생성기")
-    st.caption("엑셀 템플릿의 행사 데이터를 수정하면 카드형 하이라이트 페이지와 LMS 홍보 문안이 자동 생성됩니다.")
+    st.caption("엑셀 기반 하이라이트/LMS 생성 + URL 자동 LMS 생성 통합")
 
     uploaded_file = st.sidebar.file_uploader("엑셀 템플릿 업로드", type=["xlsx"])
     uploaded_image_files = st.sidebar.file_uploader(
         "카드 이미지 파일 업로드",
         type=["png", "jpg", "jpeg", "webp", "gif"],
         accept_multiple_files=True,
-        help="이미지 URL이 없으면 여기에 카드 이미지를 올리고, 엑셀 Image_URL 칸에는 파일명만 입력하세요. 예: main_event.jpg",
     )
     uploaded_hero_image = st.sidebar.file_uploader(
         "상단 배너 이미지 업로드",
         type=["png", "jpg", "jpeg", "webp"],
-        help="업로드하면 상단 하이라이트 배너에 사용됩니다. 업로드하지 않으면 기본 본점 배너 이미지를 사용합니다.",
     )
     image_lookup = build_image_lookup(uploaded_image_files)
     hero_image_src = resolve_hero_image(uploaded_hero_image)
@@ -821,27 +1007,24 @@ def main():
     settings["Highlight_URL"] = st.sidebar.text_input("하이라이트 URL", clean_text(settings.get("Highlight_URL")))
     settings_df = dict_to_settings_df(settings)
 
-    tab_edit, tab_preview, tab_lms, tab_export = st.tabs(["데이터 편집", "하이라이트 페이지", "LMS 문안", "다운로드"])
+    tab_edit, tab_preview, tab_lms, tab_url, tab_export = st.tabs([
+        "데이터 편집", "하이라이트 페이지", "LMS 문안 (엑셀)", "🆕 LMS 자동생성 (URL)", "다운로드"
+    ])
 
     with tab_edit:
         st.subheader("섹션 설정")
         sections_df = st.data_editor(
-            sections_df,
-            num_rows="dynamic",
-            use_container_width=True,
+            sections_df, num_rows="dynamic", use_container_width=True,
             column_config={
                 "Include": st.column_config.SelectboxColumn("Include", options=["Y", "N"], default="Y"),
                 "Section_Order": st.column_config.NumberColumn("Section_Order", min_value=1, step=1),
             },
             key="sections_editor",
         )
-
         st.subheader("행사 데이터")
-        st.info("Include=Y인 행만 하이라이트 페이지와 LMS에 반영됩니다. Item_Order는 LMS 번호 순서입니다. Image_URL에는 이미지 URL 또는 업로드한 이미지 파일명을 입력할 수 있습니다.")
+        st.info("Include=Y인 행만 반영됩니다.")
         events_df = st.data_editor(
-            ensure_event_columns(events_df),
-            num_rows="dynamic",
-            use_container_width=True,
+            ensure_event_columns(events_df), num_rows="dynamic", use_container_width=True,
             column_config={
                 "Include": st.column_config.SelectboxColumn("Include", options=["Y", "N"], default="Y"),
                 "Section_Order": st.column_config.NumberColumn("Section_Order", min_value=1, step=1),
@@ -849,7 +1032,7 @@ def main():
                 "Start_Date": st.column_config.DateColumn("Start_Date", format="YYYY-MM-DD"),
                 "End_Date": st.column_config.DateColumn("End_Date", format="YYYY-MM-DD"),
                 "Detail_URL": st.column_config.LinkColumn("Detail_URL"),
-                "Image_URL": st.column_config.TextColumn("Image_URL / Image_File", help="URL 또는 사이드바에 업로드한 이미지 파일명"),
+                "Image_URL": st.column_config.TextColumn("Image_URL / Image_File"),
             },
             key="events_editor",
         )
@@ -867,30 +1050,24 @@ def main():
         st.metric("문자수", len(lms_message), f"기준 {max_len} / {status}")
         st.text_area("생성된 LMS 홍보 문안", lms_message, height=620)
 
+    with tab_url:
+        tab_url_lms()
+
     with tab_export:
         st.subheader("다운로드")
         st.download_button(
-            "LMS 문안 TXT 다운로드",
-            data=lms_message.encode("utf-8-sig"),
-            file_name=f"lms_message_{clean_text(settings.get('Week_Label')) or 'week'}.txt",
-            mime="text/plain",
+            "LMS 문안 TXT 다운로드", data=lms_message.encode("utf-8-sig"),
+            file_name=f"lms_{clean_text(settings.get('Week_Label')) or 'week'}.txt", mime="text/plain",
         )
         st.download_button(
-            "하이라이트 HTML 다운로드",
-            data=highlight_html.encode("utf-8"),
-            file_name=f"highlight_page_{clean_text(settings.get('Week_Label')) or 'week'}.html",
-            mime="text/html",
+            "하이라이트 HTML 다운로드", data=highlight_html.encode("utf-8"),
+            file_name=f"highlight_{clean_text(settings.get('Week_Label')) or 'week'}.html", mime="text/html",
         )
         st.download_button(
             "수정 데이터 엑셀 다운로드",
             data=build_export_excel(settings_df, sections_df, events_df),
-            file_name=f"highlight_lms_data_{clean_text(settings.get('Week_Label')) or 'week'}.xlsx",
+            file_name=f"data_{clean_text(settings.get('Week_Label')) or 'week'}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-        st.code(
-            "streamlit run app.py",
-            language="bash",
         )
 
 
