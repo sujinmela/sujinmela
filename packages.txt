@@ -1,2 +1,2 @@
-fonts-nanum
-fonts-noto-cjk
+chromium
+chromium-driver
