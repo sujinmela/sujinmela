@@ -1,2 +1,2 @@
-libxml2-dev
-libxslt1-dev
+fonts-nanum
+fonts-noto-cjk
