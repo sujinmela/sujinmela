@@ -4,11 +4,10 @@ import base64
 import re
 import mimetypes
 import requests
-from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
-from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
 import pandas as pd
 import streamlit as st
 
@@ -794,120 +793,95 @@ def build_export_excel(settings_df: pd.DataFrame, sections_df: pd.DataFrame, eve
 
 
 
-# ── URL 기반 LMS 자동생성 ────────────────────────────────────────────
+# ── 규칙 기반 LMS 자동생성 (API 키 불필요) ──────────────────────────
 
-LMS_SYSTEM_PROMPT = """당신은 롯데백화점 마케팅팀의 LMS 광고 문안 전문가입니다.
-쇼핑 하이라이트 페이지 내용을 분석해 아래 형식으로 LMS 문안을 생성하세요.
-추가 설명 없이 순수 LMS 문안 텍스트만 출력합니다.
-
-=== 출력 형식 ===
-(광고)롯데백화점 {점포명}
-{고객명} 고객님 안녕하세요.
-이번주 롯데백화점 {점포명} 소식을 안내드립니다.
+CIRCLED = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"]
+NOISE = re.compile(r"사은\s*사은\s*종료|쇼핑뉴스\s*행사\s*종료")
+LOCATION = re.compile(
+    r"\s+(백화점|아울렛|에비뉴엘|입점|전점|각\s*지점|일부\s*지점|모바일\s*참여|본점|잠실점|강남점|[0-9]+F|B[0-9]+|[0-9]+\.[0-9]+\(|~).+$"
+)
 
 
-[테마명] 테마 부제목
-① [브랜드명] 행사 내용
-② [브랜드명] 행사 내용
-[테마명] 테마 부제목
-① [브랜드명] 행사 내용
-...
-
-
-자세한 사항 및 더욱 다양한 소식은 하단의 링크를 통해 확인 가능합니다.
-{URL}
-문의전화 1577-0001
-무료수신거부 080-880-2626
-
-=== 규칙 ===
-- 인사말 뒤 빈 줄 2개, 마지막 행사 뒤 빈 줄 2개
-- 테마 헤더([Special Gift], [Cosmetic] 등)와 ①②③④⑤⑥⑦⑧ 번호 원문 그대로 유지
-- 각 테마당 주요 항목 최대 6개 (너무 많으면 대표적인 것만)
-- 브랜드명·행사명 오타 없이 원문 그대로
-- 순수 텍스트만 출력 (마크다운 불가)"""
-
-
-def fetch_highlight_from_url(url: str):
-    """URL에서 requests로 HTML 소스를 받아 행사 내용만 파싱. (text, error) 반환"""
+def fetch_and_parse(url: str):
+    """URL → HTML 소스 요청 → h3/ul 구조 파싱 → [(테마제목, [항목...]), ...] 반환"""
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept-Language": "ko-KR,ko;q=0.9",
+        "Referer": "https://www.lotteshopping.com/",
+    }
     try:
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            ),
-            "Accept-Language": "ko-KR,ko;q=0.9",
-        }
         resp = requests.get(url, headers=headers, timeout=15)
         resp.raise_for_status()
         resp.encoding = "utf-8"
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-
-        # 섹션 제목 + 행사 항목 추출
-        lines = []
-        sections = soup.find_all("h3")
-        for section in sections:
-            title = section.get_text(strip=True)
-            if not title:
-                continue
-            lines.append(title)
-            # 해당 섹션의 li 항목들
-            ul = section.find_next_sibling("ul")
-            if not ul:
-                # 형제가 아닌 경우 부모에서 탐색
-                parent = section.parent
-                ul = parent.find("ul") if parent else None
-            if ul:
-                items = ul.find_all("li")
-                for item in items:
-                    text = item.get_text(separator=" ", strip=True)
-                    # 불필요한 태그 텍스트 정리
-                    text = re.sub(r"사은\s*사은\s*종료|쇼핑뉴스\s*행사\s*종료", "", text).strip()
-                    text = re.sub(r"\s+", " ", text)
-                    if text:
-                        lines.append(text)
-            lines.append("")
-
-        result = "\n".join(lines).strip()
-
-        # 파싱 실패 시 body 전체 텍스트 fallback
-        if len(result) < 50:
-            body = soup.find("body")
-            result = body.get_text(separator="\n", strip=True) if body else ""
-
-        return result, ""
-
-    except requests.exceptions.ConnectionError:
-        return "", "네트워크 연결 오류입니다."
     except requests.exceptions.Timeout:
-        return "", "페이지 로딩 시간이 초과됐습니다."
+        return None, "페이지 응답 시간이 초과됐습니다. 다시 시도해 주세요."
+    except requests.exceptions.HTTPError as e:
+        return None, f"페이지를 불러오지 못했습니다. (HTTP {e.response.status_code})"
     except Exception as e:
-        return "", f"페이지 읽기 실패: {e}"
+        return None, f"네트워크 오류: {e}"
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+    sections = []
+
+    for h3 in soup.find_all("h3"):
+        title = h3.get_text(strip=True)
+        # [XXX] 형태의 테마 헤더만 대상
+        if not re.search(r"\[.+?\]", title):
+            continue
+
+        items = []
+        ul = h3.find_next_sibling("ul")
+        if ul:
+            for li in ul.find_all("li"):
+                raw = li.get_text(separator=" ", strip=True)
+                raw = NOISE.sub("", raw).strip()
+                raw = re.sub(r"\s+", " ", raw)
+                raw = LOCATION.sub("", raw).strip()
+                if raw and "[" in raw:
+                    items.append(raw)
+
+        if items:
+            sections.append((title, items))
+
+    if not sections:
+        return None, "행사 내용을 찾지 못했습니다. URL을 확인해 주세요."
+
+    return sections, ""
 
 
-def generate_lms_ai(page_text: str, store: str, customer: str, url: str) -> str:
-    import anthropic
-    client = anthropic.Anthropic()
-    msg = client.messages.create(
-        model="claude-sonnet-4-5",
-        max_tokens=1500,
-        system=LMS_SYSTEM_PROMPT,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"아래 쇼핑 하이라이트 내용으로 LMS 문안을 생성해 주세요.\n\n"
-                f"점포명: {store}\n고객명: {customer}\nURL: {url}\n\n"
-                f"=== 쇼핑 하이라이트 내용 ===\n{page_text}"
-            )
-        }],
-    )
-    return msg.content[0].text.strip()
+def build_lms_text(sections, store: str, customer: str, url: str) -> str:
+    lines = [
+        f"(광고)롯데백화점 {store}",
+        f"{customer} 고객님 안녕하세요.",
+        f"이번주 롯데백화점 {store} 소식을 안내드립니다.",
+        "",
+        "",
+    ]
+    for title, items in sections:
+        # 테마 헤더에 공백 보정 ([Special Gift]쇼핑... → [Special Gift] 쇼핑...)
+        title = re.sub(r"(\])\s*([^\s])", r"\1 \2", title)
+        lines.append(title)
+        for i, item in enumerate(items[:6]):
+            num = CIRCLED[i] if i < len(CIRCLED) else f"{i+1}."
+            lines.append(f"{num} {item}")
+
+    lines += [
+        "",
+        "",
+        "자세한 사항 및 더욱 다양한 소식은 하단의 링크를 통해 확인 가능합니다.",
+        url,
+        "문의전화 1577-0001",
+        "무료수신거부 080-880-2626",
+    ]
+    return "\n".join(lines)
 
 
 def tab_url_lms():
     st.subheader("🔗 URL 입력 → LMS 문안 자동생성")
-    st.caption("쇼핑 하이라이트 URL만 입력하면 행사 내용을 자동으로 읽어 LMS 문안을 만들어 드립니다.")
+    st.caption("쇼핑 하이라이트 URL만 입력하면 행사 내용을 자동으로 읽어 LMS 문안을 만들어 드립니다. API 키 불필요.")
 
     STORES = {
         "서울": ["본점","잠실점","강남점","건대스타시티점","관악점","김포공항점","노원점","미아점","영등포점","청량리점"],
@@ -940,21 +914,13 @@ def tab_url_lms():
         customer_name = customer.strip() or "고객"
 
         with st.spinner("페이지에서 행사 내용을 읽는 중..."):
-            page_text, err = fetch_highlight_from_url(url_input.strip())
+            sections, err = fetch_and_parse(url_input.strip())
             if err:
                 st.error(f"❌ {err}")
                 return
-            if len(page_text) < 50:
-                st.error("행사 내용을 충분히 읽지 못했습니다. URL을 확인해 주세요.")
-                return
 
-        with st.spinner("AI가 LMS 문안을 작성하는 중..."):
-            try:
-                result = generate_lms_ai(page_text, store, customer_name, url_input.strip())
-                st.session_state["url_lms_result"] = result
-            except Exception as e:
-                st.error(f"LMS 생성 오류: {e}")
-                return
+        result = build_lms_text(sections, store, customer_name, url_input.strip())
+        st.session_state["url_lms_result"] = result
 
     if st.session_state.get("url_lms_result"):
         result = st.session_state["url_lms_result"]
@@ -973,16 +939,15 @@ def tab_url_lms():
                 f'{result_len:,}자 {warn}</div>', unsafe_allow_html=True
             )
 
-        st.text_area("복사용 LMS 문안", value=result, height=400, key="url_lms_copy")
+        st.text_area("복사용 LMS 문안", value=result, height=420, key="url_lms_copy")
 
         if is_over:
-            st.warning(f"{result_len:,}자 — LMS 1,000자 제한 초과 가능. 항목 수를 줄여주세요.")
+            st.warning(f"{result_len:,}자 — 1,000자 제한 초과 가능. 테마당 항목 수를 줄이려면 아래 슬라이더를 조정하세요.")
 
 
 def main():
     st.set_page_config(page_title="롯데백화점 하이라이트 & LMS 생성기", layout="wide")
     st.title("롯데백화점 하이라이트 페이지 & LMS 생성기")
-    st.caption("엑셀 기반 하이라이트/LMS 생성 + URL 자동 LMS 생성 통합")
 
     uploaded_file = st.sidebar.file_uploader("엑셀 템플릿 업로드", type=["xlsx"])
     uploaded_image_files = st.sidebar.file_uploader(
