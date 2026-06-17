@@ -72,7 +72,7 @@ def get_bg_base64() -> str:
 BG_B64 = get_bg_base64()
 bg_css = (
     f"background-image: url('data:image/png;base64,{BG_B64}');"
-    "background-size: cover; background-position: center; background-attachment: fixed;"
+    "background-size: cover; background-position: center top; background-attachment: fixed;"
     if BG_B64 else ""
 )
 
@@ -89,7 +89,7 @@ st.markdown(f"""
 .stApp::before {{
     content: '';
     position: fixed; inset: 0;
-    background: rgba(242,240,236,0.82);
+    background: linear-gradient(135deg, rgba(242,240,236,0.78) 0%, rgba(230,228,224,0.72) 100%);
     z-index: 0;
     pointer-events: none;
 }}
@@ -105,29 +105,31 @@ html, body, [class*="css"] {{
 
 /* 헤더 */
 .lotte-header {{
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(12px);
-    border-bottom: 2px solid #c8102e;
-    padding: 18px 36px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(200,16,46,0.25);
+    padding: 16px 40px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 24px rgba(0,0,0,0.07), 0 0 0 0.5px rgba(200,16,46,0.1);
 }}
 .lotte-logo {{
-    font-family: 'Noto Serif KR', serif;
-    font-size: 1.45rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 1.18rem;
     font-weight: 700;
     color: #c8102e;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
 }}
 .lotte-subtitle {{
-    font-size: 0.78rem;
-    color: #888;
-    letter-spacing: 0.08em;
-    margin-top: 2px;
-    text-transform: uppercase;
+    font-size: 0.7rem;
+    color: #aaa;
+    letter-spacing: 0.12em;
+    margin-top: 4px;
+    font-weight: 300;
 }}
 
 /* 캘린더 컨테이너 */
@@ -554,9 +556,16 @@ with st.sidebar:
 # ── 헤더 ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class='lotte-header'>
-    <div>
-        <div class='lotte-logo'>🏬 롯데프리미엄아울렛 파주점</div>
-        <div class='lotte-subtitle'>동료사원 소통채널 · Partner Communication Hub</div>
+    <div style='display:flex;align-items:center;gap:18px;'>
+        <div style='width:3px;height:40px;background:#c8102e;border-radius:2px;flex-shrink:0;'></div>
+        <div>
+            <div class='lotte-logo'>LOTTE PREMIUM OUTLETS <span style='color:#888;font-weight:300;font-size:1.1rem;letter-spacing:0.12em;'>PAJU</span></div>
+            <div class='lotte-subtitle'>파트너 소통채널 &nbsp;·&nbsp; Partner Communication Hub</div>
+        </div>
+    </div>
+    <div style='font-size:0.7rem;color:#bbb;letter-spacing:0.1em;text-align:right;line-height:1.8;'>
+        영업기획팀 내부 시스템<br>
+        <span style='color:#e0ddd8;'>FOR INTERNAL USE ONLY</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -755,7 +764,11 @@ with side_col:
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
     st.markdown("<div class='side-panel'>", unsafe_allow_html=True)
-    st.markdown("<div class='side-title'>바로가기</div>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class='side-title'>
+        <span style='font-size:0.6rem;letter-spacing:0.18em;color:#c8102e;font-weight:700;display:block;margin-bottom:3px;'>QUICK ACCESS</span>
+        바로가기
+    </div>""", unsafe_allow_html=True)
 
     # 바로가기 버튼 렌더링
     shortcuts = st.session_state.shortcuts
