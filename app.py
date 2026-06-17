@@ -369,6 +369,13 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
 .shortcut-btn {{
     margin-bottom: 5px !important;
 }}
+/* 바로가기 관리 버튼 - 그레이톤 구분 */
+div[data-testid="stVerticalBlock"] .stButton:has(button[kind="secondary"]:last-child) > button,
+[data-testid="stBaseButton-secondary"][aria-label*="바로가기 관리"] {{
+    background: #2a2a2a !important;
+    border: 1px solid #3a3a3a !important;
+    color: #888 !important;
+}}
 /* 사이드 st.button들이 side-panel 안에 있는 것처럼 보이도록 배경 통일 */
 div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"],
 div[data-testid="stVerticalBlock"] > div {{
@@ -711,6 +718,19 @@ p, span, div, label {{ color: var(--white); }}
 </style>
 <script>
 // expander 제거됨 - _arrow_right 이슈 해결
+
+// 바로가기 관리 버튼 그레이 스타일 적용
+function styleAdminBtn() {{
+    document.querySelectorAll('button').forEach(function(btn) {{
+        if (btn.innerText && btn.innerText.includes('바로가기 관리')) {{
+            btn.style.setProperty('background', '#252525', 'important');
+            btn.style.setProperty('border-color', '#3a3a3a', 'important');
+            btn.style.setProperty('color', '#999999', 'important');
+        }}
+    }});
+}}
+styleAdminBtn();
+setInterval(styleAdminBtn, 500);
 
 document.addEventListener('mousemove', function(e) {{
     const tips = document.querySelectorAll('.tooltip-text');
@@ -1265,8 +1285,30 @@ with side_col:
         바로가기
     </div>""", unsafe_allow_html=True)
 
-    # 바로가기 버튼 렌더링 (순서 적용)
-    ordered_sc = get_ordered_shortcuts()
+    # ── 날씨 카드 (바로가기 위에 배치) ──────────────────────────────────────
+    render_weather_card()
+    st.markdown("<hr style='border:none;border-top:1px solid #2a2a2a;margin:12px 0 10px;'>",
+                unsafe_allow_html=True)
+
+    # 바로가기 버튼 렌더링 (지정 순서)
+    FIXED_ORDER = [
+        "매장안내", "롯데파트너포탈", "사은/무이자 행사 안내",
+        "직원식당 메뉴안내", "직원주차 안내(주말/공휴일)", "온라인 신규 운영 매뉴얼"
+    ]
+    shortcuts_all = st.session_state.shortcuts
+    # label 기준으로 정렬
+    label_to_key = {v.get("label", k): k for k, v in shortcuts_all.items()}
+    # 지정 순서 먼저, 나머지는 뒤에
+    ordered_keys_fixed = []
+    for lbl in FIXED_ORDER:
+        if lbl in label_to_key:
+            ordered_keys_fixed.append(label_to_key[lbl])
+    # 나머지 키 (FIXED_ORDER에 없는 것)
+    for k in get_ordered_shortcuts():
+        if k[0] not in ordered_keys_fixed:
+            ordered_keys_fixed.append(k[0])
+    ordered_sc = [(k, shortcuts_all[k]) for k in ordered_keys_fixed if k in shortcuts_all]
+
     for key, sc in ordered_sc:
         label = sc.get("label", key)
         stype = sc.get("type", "board")
@@ -1301,10 +1343,6 @@ with side_col:
                 )
                 st.rerun()
 
-    # ── 날씨 카드 (side-panel 닫기 전에 구분선으로 연결) ──────────────────
-    st.markdown("<hr style='border:none;border-top:1px solid #2a2a2a;margin:10px 0 12px;'>",
-                unsafe_allow_html=True)
-    render_weather_card()
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
