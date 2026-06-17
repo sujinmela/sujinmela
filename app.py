@@ -441,8 +441,8 @@ def delete_event(year: int, month: int, day: int, dept: str, idx: int):
 def render_calendar_html(year: int, month: int) -> str:
     today = datetime.today()
     cal = calendar.monthcalendar(year, month)
-    day_headers = ["일", "월", "화", "수", "목", "금", "토"]
-    cls_map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+    day_headers = ["월", "화", "수", "목", "금", "토", "일"]
+    cls_map = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
     rows_html = ""
     for week in cal:
