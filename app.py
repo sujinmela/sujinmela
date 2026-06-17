@@ -367,10 +367,10 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     width: 100%;
     background: #1e1e1e;
     color: var(--white) !important;
-    font-size: 0.76rem;
+    font-size: 0.82rem;
     font-weight: 600 !important;
     font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.04em;
     padding: 11px 0;
     border-radius: 4px;
     text-align: center;
@@ -509,7 +509,7 @@ div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
 .stButton > button,
 .stDownloadButton > button {{
     font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
-    font-size: 0.76rem !important;
+    font-size: 0.82rem !important;
     font-weight: 600 !important;
     border-radius: 4px !important;
     background: #111111 !important;
@@ -688,19 +688,25 @@ p, span, div, label {{ color: var(--white); }}
 }}
 </style>
 <script>
-// _arrow_right 텍스트 제거
+// _arrow_right 텍스트 제거 (강화버전)
 function removeArrowText() {{
     document.querySelectorAll('summary').forEach(function(s) {{
-        s.childNodes.forEach(function(node) {{
-            if (node.nodeType === 3 && node.textContent.includes('_arrow')) {{
-                node.textContent = '';
+        // 텍스트 노드 직접 제거
+        Array.from(s.childNodes).forEach(function(node) {{
+            if (node.nodeType === 3) {{ node.textContent = ''; }}
+        }});
+        // span 내부 _arrow 텍스트 제거
+        s.querySelectorAll('span').forEach(function(span) {{
+            if (span.textContent && span.textContent.includes('_arrow')) {{
+                span.textContent = '';
             }}
         }});
     }});
 }}
 removeArrowText();
-const observer = new MutationObserver(removeArrowText);
-observer.observe(document.body, {{childList: true, subtree: true}});
+setInterval(removeArrowText, 300);
+const _arrowObs = new MutationObserver(removeArrowText);
+_arrowObs.observe(document.body, {{childList: true, subtree: true}});
 
 document.addEventListener('mousemove', function(e) {{
     const tips = document.querySelectorAll('.tooltip-text');
@@ -1429,10 +1435,11 @@ with side_col:
 
 # ── 푸터 ──────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style='text-align:center; padding:28px 0 16px; font-size:0.64rem;
-     color:#444; letter-spacing:0.12em; margin-top:20px; border-top:1px solid #1e1e1e;'>
-    LOTTE PREMIUM OUTLETS PAJU &nbsp;·&nbsp; 영업기획팀 내부 시스템
-    &nbsp;<span style='color:#c8ff00;'>·</span>&nbsp;
+<div style='text-align:center; padding:28px 0 16px; font-size:0.68rem;
+     color:#aaa; letter-spacing:0.1em; margin-top:20px; border-top:1px solid #2a2a2a;
+     font-family:Pretendard,sans-serif;'>
+    LOTTE PREMIUM OUTLETS PAJU &nbsp;<span style='color:#c8ff00;'>·</span>&nbsp;
+    영업기획팀 내부 시스템 &nbsp;<span style='color:#c8ff00;'>·</span>&nbsp;
     무단 배포 및 외부 공유 금지
 </div>
 """, unsafe_allow_html=True)
