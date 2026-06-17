@@ -843,8 +843,11 @@ def render_weather_card():
     today = get_openmeteo_weather()
     ly    = get_openmeteo_lastyear()
 
-    # ── 헤더 ──
+    # ── 날씨 카드 컨테이너 시작 ──
     st.markdown(
+        "<div style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);"
+        "border-radius:10px;padding:16px 16px 14px;margin-top:4px;"
+        "backdrop-filter:blur(8px);'>"
         "<span style='font-size:0.56rem;letter-spacing:0.16em;color:#c8ff00;"
         "font-weight:700;text-transform:uppercase;'>🌤 TODAY\'S WEATHER · PAJU</span>",
         unsafe_allow_html=True
@@ -929,6 +932,7 @@ def render_weather_card():
             "<div style='font-size:0.68rem;color:#555;margin-top:4px;'>조회 불가</div>",
             unsafe_allow_html=True
         )
+    st.markdown("</div>", unsafe_allow_html=True)  # 날씨 카드 컨테이너 닫기
 
 def edit_event(year: int, month: int, day: int, dept: str, idx: int, new_title: str, new_detail: str):
     key = get_cal_key(year, month, day, dept)
@@ -1243,7 +1247,6 @@ with side_col:
                         unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
     st.markdown("<div class='side-panel'>", unsafe_allow_html=True)
     st.markdown("""
     <div class='side-title'>
@@ -1290,14 +1293,7 @@ with side_col:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 날씨 카드 ─────────────────────────────────────────────────────────────
-    st.markdown(
-        "<div style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);"
-        "border-radius:10px;padding:16px 16px 14px;margin-top:10px;"
-        "backdrop-filter:blur(8px);'>",
-        unsafe_allow_html=True
-    )
     render_weather_card()
-    st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
