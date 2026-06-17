@@ -1321,8 +1321,9 @@ with side_col:
 
     # ── 날씨 카드 ─────────────────────────────────────────────────────────────
     st.markdown(
-        "<div style='background:rgba(17,17,17,0.92);border:1px solid #2a2a2a;"
-        "border-radius:10px;padding:16px 16px 14px;margin-top:10px;'>",
+        "<div style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);"
+        "border-radius:10px;padding:16px 16px 14px;margin-top:10px;"
+        "backdrop-filter:blur(8px);'>",
         unsafe_allow_html=True
     )
     render_weather_card()
