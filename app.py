@@ -1278,9 +1278,7 @@ with side_col:
             rows_html = "<p style='font-size:0.78rem;color:#aaa;'>업데이트 내역이 없습니다.</p>"
         st.markdown(f"<div class='update-panel'>{rows_html}</div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='side-panel'>", unsafe_allow_html=True)
-
-    # ── 날씨 카드 (바로가기 위에 배치) ──────────────────────────────────────
+    # ── 날씨 카드 ──────────────────────────────────────────────────────────
     render_weather_card()
     st.markdown("<hr style='border:none;border-top:1px solid #2a2a2a;margin:12px 0 10px;'>",
                 unsafe_allow_html=True)
@@ -1337,8 +1335,6 @@ with side_col:
                     None if st.session_state.board_key == key else key
                 )
                 st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
