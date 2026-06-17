@@ -368,7 +368,8 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     background: #1e1e1e;
     color: var(--white) !important;
     font-size: 0.76rem;
-    font-weight: 600;
+    font-weight: 600 !important;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
     letter-spacing: 0.06em;
     padding: 11px 0;
     border-radius: 4px;
@@ -517,11 +518,23 @@ div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
     transition: all 0.18s !important;
     letter-spacing: 0.04em !important;
 }}
+.stButton > button p,
+.stDownloadButton > button p,
+.stButton > button span,
+.stDownloadButton > button span {{
+    font-weight: 600 !important;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
+    color: #ffffff !important;
+}}
 .stButton > button:hover,
 .stDownloadButton > button:hover {{
     background: var(--lime) !important;
     color: #111111 !important;
     border-color: var(--lime) !important;
+}}
+.stButton > button:hover p,
+.stDownloadButton > button:hover p {{
+    color: #111111 !important;
 }}
 /* form submit 버튼도 동일 */
 .stFormSubmitButton > button {{
@@ -657,6 +670,18 @@ div[data-testid="stForm"] {{
 .stError {{ background: rgba(255,80,80,0.1) !important; color: var(--white) !important; }}
 .stWarning {{ background: rgba(255,180,0,0.1) !important; color: var(--white) !important; }}
 p, span, div, label {{ color: var(--white); }}
+
+/* 버튼 텍스트 흰색 강제 (모든 하위 요소) */
+.stButton button *,
+.stDownloadButton button *,
+.stFormSubmitButton button * {{
+    color: #ffffff !important;
+}}
+.stButton button:hover *,
+.stDownloadButton button:hover *,
+.stFormSubmitButton button:hover * {{
+    color: #111111 !important;
+}}
 </style>
 <script>
 // _arrow_right 텍스트 제거
