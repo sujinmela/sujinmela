@@ -2,7 +2,9 @@ import streamlit as st
 import json
 import base64
 import calendar
-from datetime import datetime
+import urllib.request
+import urllib.parse
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ── 페이지 설정 ──────────────────────────────────────────────────────────────
@@ -18,14 +20,19 @@ ADMIN_PASSWORD = "1234"   # 운영자 비밀번호 (4자리)
 DATA_FILE = Path("calendar_data.json")
 SHORTCUTS_FILE = Path("shortcuts_data.json")
 DEPT_COLORS = {
-    "영업기획팀": "#c8102e",   # 롯데 레드
-    "지원팀":   "#1a3a5c",   # 딥 네이비
-    "시설팀":   "#5a5a5a",   # 차콜
+    "영업기획팀": "#c8ff00",   # 라임
+    "지원팀":   "#60c8ff",   # 스카이블루
+    "시설팀":   "#aaaaaa",   # 라이트그레이
 }
 DEPT_BG = {
-    "영업기획팀": "rgba(200,16,46,0.10)",
-    "지원팀":   "rgba(26,58,92,0.10)",
-    "시설팀":   "rgba(90,90,90,0.10)",
+    "영업기획팀": "rgba(200,255,0,0.12)",
+    "지원팀":   "rgba(96,200,255,0.12)",
+    "시설팀":   "rgba(170,170,170,0.10)",
+}
+DEPT_TEXT = {
+    "영업기획팀": "#111111",
+    "지원팀":   "#111111",
+    "시설팀":   "#111111",
 }
 DEPTS = ["영업기획팀", "지원팀", "시설팀"]
 
@@ -79,17 +86,48 @@ bg_css = (
 # ── 글로벌 CSS ────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteRegular.woff');
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+@font-face {{
+    font-family: 'MyLotte';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteLight.woff') format('woff');
+    font-weight: 300;
+}}
+@font-face {{
+    font-family: 'MyLotte';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteRegular.woff') format('woff');
+    font-weight: 400;
+}}
+@font-face {{
+    font-family: 'MyLotte';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteBold.woff') format('woff');
+    font-weight: 700;
+}}
 
-/* 전체 배경 */
+/* ── 키 컬러 변수 ── */
+:root {{
+    --black: #111111;
+    --lime: #c8ff00;
+    --lime-dark: #a8d900;
+    --white: #ffffff;
+    --gray-100: #f5f5f5;
+    --gray-200: #e8e8e8;
+    --gray-500: #888888;
+    --gray-700: #444444;
+}}
+
+/* ── 전체 배경 ── */
 .stApp {{
     {bg_css}
-    background-color: #f2f0ec;
+    background-color: #111111;
 }}
 .stApp::before {{
     content: '';
     position: fixed; inset: 0;
-    background: linear-gradient(135deg, rgba(242,240,236,0.78) 0%, rgba(230,228,224,0.72) 100%);
+    background: linear-gradient(160deg,
+        rgba(17,17,17,0.82) 0%,
+        rgba(17,17,17,0.70) 50%,
+        rgba(17,17,17,0.85) 100%);
     z-index: 0;
     pointer-events: none;
 }}
@@ -97,62 +135,70 @@ section[data-testid="stMain"] > div {{
     position: relative; z-index: 1;
 }}
 
-/* 폰트 전역 */
-html, body, [class*="css"] {{
-    font-family: 'Noto Sans KR', sans-serif;
-    color: #1a1a1a;
+/* ── 폰트 전역 ── */
+html, body, [class*="css"], p, span, div, label, button, input, textarea, select {{
+    font-family: 'MyLotte', 'Pretendard', -apple-system, sans-serif !important;
+    color: var(--white);
 }}
 
-/* 헤더 */
+/* ── 헤더 ── */
 .lotte-header {{
-    background: rgba(255,255,255,0.94);
+    background: rgba(17,17,17,0.96);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(200,16,46,0.25);
-    padding: 16px 40px;
+    border-bottom: 2px solid var(--lime);
+    padding: 14px 40px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 0;
-    box-shadow: 0 1px 24px rgba(0,0,0,0.07), 0 0 0 0.5px rgba(200,16,46,0.1);
+    box-shadow: 0 2px 32px rgba(0,0,0,0.5);
 }}
 .lotte-logo {{
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 1.18rem;
+    font-family: 'MyLotte', sans-serif;
+    font-size: 1.22rem;
     font-weight: 700;
-    color: #c8102e;
-    letter-spacing: 0.18em;
+    color: var(--white);
+    letter-spacing: 0.22em;
     text-transform: uppercase;
 }}
-.lotte-subtitle {{
-    font-size: 0.7rem;
-    color: #aaa;
-    letter-spacing: 0.12em;
-    margin-top: 4px;
+.lotte-logo .accent {{
+    color: var(--lime);
     font-weight: 300;
+    font-size: 1.05rem;
+    letter-spacing: 0.28em;
+}}
+.lotte-subtitle {{
+    font-size: 0.66rem;
+    color: var(--gray-500);
+    letter-spacing: 0.14em;
+    margin-top: 5px;
+    font-weight: 300;
+    text-transform: uppercase;
 }}
 
-/* 캘린더 컨테이너 */
+/* ── 캘린더 컨테이너 ── */
 .cal-wrap {{
-    background: rgba(255,255,255,0.88);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    box-shadow: 0 4px 32px rgba(0,0,0,0.09);
+    background: rgba(17,17,17,0.82);
+    backdrop-filter: blur(12px);
+    border-radius: 10px;
+    border: 1px solid rgba(200,255,0,0.15);
+    box-shadow: 0 4px 40px rgba(0,0,0,0.4);
     padding: 28px 24px 24px;
     margin: 0;
 }}
 .cal-month-title {{
-    font-family: 'Noto Serif KR', serif;
-    font-size: 1.6rem;
+    font-family: 'MyLotte', sans-serif;
+    font-size: 1.5rem;
     font-weight: 700;
-    color: #1a1a1a;
-    letter-spacing: 0.02em;
+    color: var(--white);
+    letter-spacing: 0.04em;
     margin-bottom: 18px;
-    border-left: 4px solid #c8102e;
-    padding-left: 12px;
+    border-left: 4px solid var(--lime);
+    padding-left: 14px;
 }}
 
-/* 캘린더 테이블 */
+/* ── 캘린더 테이블 ── */
 .cal-table {{
     width: 100%;
     border-collapse: collapse;
@@ -160,53 +206,65 @@ html, body, [class*="css"] {{
     overflow: visible;
 }}
 .cal-table th {{
-    background: #1a3a5c;
-    color: #fff;
-    font-size: 0.78rem;
+    background: var(--black);
+    color: var(--gray-500);
+    font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    padding: 8px 0;
+    letter-spacing: 0.1em;
+    padding: 10px 0;
     text-align: center;
-    border: 1px solid #1a3a5c;
+    border: 1px solid #222;
+    text-transform: uppercase;
 }}
-.cal-table th.sun {{ background: #c8102e; }}
-.cal-table th.sat {{ background: #3a6491; }}
+.cal-table th.sun {{ color: #ff6b6b; }}
+.cal-table th.sat {{ color: #6bb5ff; }}
 
 .cal-cell {{
     vertical-align: top;
-    border: 1px solid #e0ddd8;
-    padding: 6px 5px 4px;
-    height: 110px;
-    background: rgba(255,255,255,0.7);
+    border: 1px solid #222;
+    padding: 7px 6px 5px;
+    height: 115px;
+    background: rgba(255,255,255,0.03);
     transition: background 0.2s;
     overflow: visible;
     position: relative;
 }}
-.cal-cell:hover {{ background: rgba(255,255,255,0.96); }}
-.cal-cell.today {{ background: rgba(200,16,46,0.04); border-color: #c8102e; }}
-.cal-cell.other-month {{ background: rgba(240,240,240,0.3); }}
+.cal-cell:hover {{ background: rgba(200,255,0,0.04); border-color: rgba(200,255,0,0.2); }}
+.cal-cell.today {{
+    background: rgba(200,255,0,0.06);
+    border-color: var(--lime);
+    border-width: 1.5px;
+}}
+.cal-cell.other-month {{ background: rgba(0,0,0,0.2); opacity: 0.4; }}
 
 .day-num {{
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: #333;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gray-500);
     margin-bottom: 4px;
     display: block;
+    letter-spacing: 0.02em;
 }}
-.day-num.sun {{ color: #c8102e; }}
-.day-num.sat {{ color: #2a5fa5; }}
+.day-num.today-num {{
+    background: var(--lime);
+    color: var(--black);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem;
+    margin-bottom: 4px;
+}}
+.day-num.sun {{ color: #ff6b6b; }}
+.day-num.sat {{ color: #6bb5ff; }}
 
-/* 부서별 공지 배지 */
-.dept-row {{
-    margin-bottom: 2px;
-    min-height: 20px;
-}}
+/* ── 부서별 배지 ── */
+.dept-row {{ margin-bottom: 2px; min-height: 20px; }}
 .dept-badge {{
     display: inline-block;
-    font-size: 0.64rem;
+    font-size: 0.62rem;
     font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 3px;
+    padding: 2px 5px;
+    border-radius: 2px;
     max-width: 100%;
     overflow: visible;
     text-overflow: ellipsis;
@@ -216,178 +274,246 @@ html, body, [class*="css"] {{
     letter-spacing: 0.01em;
     transition: opacity 0.15s;
 }}
-.dept-badge:hover {{ opacity: 0.85; }}
+.dept-badge:hover {{ opacity: 0.8; }}
 
-/* 툴팁 */
+/* ── 툴팁 ── */
 .has-tooltip {{ position: relative; }}
 .has-tooltip .tooltip-text {{
     visibility: hidden;
     opacity: 0;
-    width: 240px;
-    background: #1a1a1a;
-    color: #fff;
+    width: 260px;
+    background: var(--black);
+    border: 1px solid var(--lime);
+    color: var(--white);
     font-size: 0.72rem;
-    line-height: 1.6;
+    line-height: 1.7;
     border-radius: 6px;
-    padding: 10px 12px;
+    padding: 10px 14px;
     position: fixed;
     z-index: 99999;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.30);
-    transition: opacity 0.15s;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    transition: opacity 0.12s;
     pointer-events: none;
     white-space: pre-wrap;
     word-break: keep-all;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
 }}
 .has-tooltip:hover .tooltip-text {{
     visibility: visible;
     opacity: 1;
 }}
+.tooltip-dept {{ color: var(--lime); font-weight: 700; margin-bottom: 4px; display: block; }}
 
-/* 범례 */
-.legend-wrap {{
-    display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap;
-}}
-.legend-item {{
-    display: flex; align-items: center; gap: 5px;
-    font-size: 0.72rem; color: #555;
-}}
-.legend-dot {{
-    width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
-}}
+/* ── 범례 ── */
+.legend-wrap {{ display: flex; gap: 18px; margin-top: 16px; flex-wrap: wrap; }}
+.legend-item {{ display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--gray-500); }}
+.legend-dot {{ width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }}
 
-/* 사이드 패널 */
+/* ── 사이드 패널 ── */
 .side-panel {{
-    background: rgba(255,255,255,0.88);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    box-shadow: 0 4px 32px rgba(0,0,0,0.09);
-    padding: 22px 18px;
+    background: rgba(17,17,17,0.88);
+    backdrop-filter: blur(12px);
+    border-radius: 10px;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+    padding: 20px 16px;
 }}
 .side-title {{
-    font-family: 'Noto Serif KR', serif;
-    font-size: 1.0rem;
+    font-family: 'MyLotte', sans-serif;
+    font-size: 0.95rem;
     font-weight: 700;
-    color: #1a3a5c;
-    border-bottom: 1px solid #e0ddd8;
+    color: var(--white);
+    border-bottom: 1px solid #2a2a2a;
     padding-bottom: 10px;
     margin-bottom: 14px;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
+}}
+.side-caption {{
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    color: var(--lime);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 4px;
+    text-transform: uppercase;
 }}
 
-/* 바로가기 버튼 */
+/* ── 바로가기 버튼 ── */
 .shortcut-btn {{
     display: block;
     width: 100%;
-    background: #1a3a5c;
-    color: #fff !important;
-    font-size: 0.78rem;
+    background: #1e1e1e;
+    color: var(--white) !important;
+    font-size: 0.76rem;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    padding: 10px 0;
-    border-radius: 5px;
+    letter-spacing: 0.06em;
+    padding: 11px 0;
+    border-radius: 4px;
     text-align: center;
-    margin-bottom: 8px;
+    margin-bottom: 7px;
     text-decoration: none;
-    transition: background 0.2s, transform 0.15s;
+    transition: background 0.18s, color 0.18s, transform 0.12s;
     cursor: pointer;
-    border: none;
+    border: 1px solid #333;
 }}
 .shortcut-btn:hover {{
-    background: #c8102e;
+    background: var(--lime);
+    color: var(--black) !important;
+    border-color: var(--lime);
     transform: translateY(-1px);
     text-decoration: none;
 }}
 .shortcut-btn.red {{
-    background: #c8102e;
+    background: #1e1e1e;
+    border-color: var(--lime);
+    color: var(--lime) !important;
 }}
 .shortcut-btn.red:hover {{
-    background: #a00d25;
+    background: var(--lime);
+    color: var(--black) !important;
 }}
 
-/* 업데이트 패널 */
-.update-panel {{
-    background: #fff;
+/* ── 날씨 카드 ── */
+.weather-card {{
+    background: rgba(17,17,17,0.9);
+    border: 1px solid #2a2a2a;
     border-radius: 10px;
-    border: 1px solid #e0ddd8;
-    padding: 16px 18px;
-    margin-top: 12px;
-    max-height: 340px;
+    padding: 16px;
+    margin-top: 10px;
+}}
+.weather-title {{
+    font-size: 0.58rem;
+    letter-spacing: 0.18em;
+    color: var(--lime);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+}}
+.weather-row {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}}
+.weather-icon {{ font-size: 1.6rem; line-height: 1; }}
+.weather-temp {{
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--white);
+    letter-spacing: -0.01em;
+}}
+.weather-desc {{ font-size: 0.7rem; color: var(--gray-500); margin-top: 1px; }}
+.weather-label {{ font-size: 0.62rem; color: var(--lime); font-weight: 600; margin-bottom: 3px; }}
+.weather-divider {{
+    border: none;
+    border-top: 1px solid #2a2a2a;
+    margin: 10px 0;
+}}
+.weather-last-year {{
+    font-size: 0.68rem;
+    color: var(--gray-500);
+    line-height: 1.7;
+}}
+.weather-last-year b {{ color: #aaa; }}
+
+/* ── 업데이트 패널 ── */
+.update-panel {{
+    background: rgba(17,17,17,0.95);
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+    padding: 14px 16px;
+    margin-top: 10px;
+    max-height: 320px;
     overflow-y: auto;
 }}
 .update-item {{
-    border-bottom: 1px solid #f0ede8;
+    border-bottom: 1px solid #1e1e1e;
     padding: 8px 0;
-    font-size: 0.78rem;
-    color: #333;
+    font-size: 0.76rem;
+    color: #ccc;
     line-height: 1.55;
 }}
 .update-item:last-child {{ border-bottom: none; }}
-.update-date {{
-    font-size: 0.68rem;
-    color: #aaa;
-    margin-top: 2px;
-}}
+.update-date {{ font-size: 0.65rem; color: var(--gray-500); margin-top: 2px; }}
 
-/* 게시판 */
+/* ── 게시판 ── */
 .board-wrap {{
-    background: rgba(255,255,255,0.9);
-    border-radius: 12px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    background: rgba(17,17,17,0.88);
+    border-radius: 10px;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
     padding: 24px 28px;
     margin-top: 16px;
 }}
 .board-title {{
-    font-family: 'Noto Serif KR', serif;
-    font-size: 1.2rem;
+    font-family: 'MyLotte', sans-serif;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #1a3a5c;
+    color: var(--white);
     margin-bottom: 16px;
-    border-left: 4px solid #c8102e;
+    border-left: 4px solid var(--lime);
     padding-left: 10px;
 }}
-.board-item {{
-    border-bottom: 1px solid #f0ede8;
-    padding: 10px 4px;
-}}
+.board-item {{ border-bottom: 1px solid #1e1e1e; padding: 10px 4px; }}
 .board-item:last-child {{ border-bottom: none; }}
-.board-item-title {{
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #1a1a1a;
-}}
-.board-item-body {{
-    font-size: 0.78rem;
-    color: #666;
-    margin-top: 3px;
-}}
-.board-item-meta {{
-    font-size: 0.68rem;
-    color: #bbb;
-    margin-top: 3px;
-}}
+.board-item-title {{ font-size: 0.84rem; font-weight: 600; color: var(--white); }}
+.board-item-body {{ font-size: 0.76rem; color: var(--gray-500); margin-top: 3px; }}
+.board-item-meta {{ font-size: 0.65rem; color: #555; margin-top: 3px; }}
 
-/* Streamlit 기본 스타일 오버라이드 */
+/* ── Streamlit 오버라이드 ── */
 div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
+.stApp, [data-testid="stAppViewContainer"] {{ background: transparent; }}
+
 .stButton > button {{
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 0.78rem;
-    font-weight: 600;
-    border-radius: 5px;
-    transition: all 0.2s;
+    font-family: 'MyLotte', sans-serif !important;
+    font-size: 0.76rem !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+    background: #1e1e1e !important;
+    color: var(--white) !important;
+    border: 1px solid #333 !important;
+    transition: all 0.18s !important;
+    letter-spacing: 0.04em !important;
+}}
+.stButton > button:hover {{
+    background: var(--lime) !important;
+    color: var(--black) !important;
+    border-color: var(--lime) !important;
 }}
 div[data-testid="stForm"] {{
-    background: rgba(255,255,255,0.9);
-    border-radius: 10px;
-    padding: 20px;
-    border: 1px solid #e0ddd8;
+    background: rgba(30,30,30,0.9) !important;
+    border-radius: 8px !important;
+    padding: 20px !important;
+    border: 1px solid #2a2a2a !important;
 }}
-.stSelectbox label, .stTextInput label, .stTextArea label {{
-    font-size: 0.78rem !important;
+.stSelectbox label, .stTextInput label, .stTextArea label,
+.stNumberInput label, .stCheckbox label {{
+    font-size: 0.74rem !important;
     font-weight: 600 !important;
-    color: #1a3a5c !important;
+    color: var(--lime) !important;
+    letter-spacing: 0.06em !important;
 }}
+.stTextInput input, .stTextArea textarea, .stSelectbox select {{
+    background: #111 !important;
+    color: var(--white) !important;
+    border-color: #333 !important;
+}}
+[data-testid="stSidebar"] {{
+    background: rgba(17,17,17,0.97) !important;
+    border-right: 1px solid #2a2a2a !important;
+}}
+.stExpander {{
+    background: rgba(20,20,20,0.9) !important;
+    border: 1px solid #2a2a2a !important;
+    border-radius: 6px !important;
+}}
+.stInfo {{ background: rgba(200,255,0,0.08) !important; border-color: var(--lime) !important; color: var(--white) !important; }}
+.stSuccess {{ background: rgba(0,200,100,0.1) !important; color: var(--white) !important; }}
+.stError {{ background: rgba(255,80,80,0.1) !important; color: var(--white) !important; }}
+.stWarning {{ background: rgba(255,180,0,0.1) !important; color: var(--white) !important; }}
+p, span, div, label {{ color: var(--white); }}
 </style>
 <script>
 document.addEventListener('mousemove', function(e) {{
@@ -397,8 +523,8 @@ document.addEventListener('mousemove', function(e) {{
         const vh = window.innerHeight;
         let x = e.clientX + 14;
         let y = e.clientY - 10;
-        if (x + 260 > vw) x = e.clientX - 260;
-        if (y + 200 > vh) y = e.clientY - 210;
+        if (x + 280 > vw) x = e.clientX - 280;
+        if (y + 220 > vh) y = e.clientY - 230;
         tip.style.left = x + 'px';
         tip.style.top  = y + 'px';
     }});
@@ -456,6 +582,127 @@ def delete_event(year: int, month: int, day: int, dept: str, idx: int):
             save_data(DATA_FILE, st.session_state.cal_data)
 
 
+# ── 날씨 조회 (기상청 Open API - 파주시 격자 nx=91, ny=120) ─────────────────
+PAJU_NX, PAJU_NY = 91, 120
+KMA_API_KEY = "YOUR_API_KEY_HERE"  # 기상청 API 키 입력 (data.go.kr 발급)
+
+def _kma_base_time(dt: datetime) -> tuple:
+    """기상청 단기예보 base_time 계산 (02,05,08,11,14,17,20,23시)"""
+    hours = [2, 5, 8, 11, 14, 17, 20, 23]
+    h = dt.hour
+    valid = [x for x in hours if x <= h]
+    if valid:
+        base_h = valid[-1]
+        base_date = dt.strftime("%Y%m%d")
+    else:
+        base_h = 23
+        base_date = (dt - timedelta(days=1)).strftime("%Y%m%d")
+    return base_date, f"{base_h:02d}00"
+
+def _parse_pty(pty: str) -> str:
+    return {"0":"없음","1":"비","2":"비/눈","3":"눈","4":"소나기"}.get(pty, "없음")
+
+def _parse_sky(sky: str) -> str:
+    return {"1":"맑음","3":"구름 많음","4":"흐림"}.get(sky, "-")
+
+def _weather_icon(sky: str, pty: str) -> str:
+    if pty != "0": return "🌧️" if pty in ("1","4") else "🌨️" if pty == "3" else "🌦️"
+    return {"1":"☀️","3":"⛅","4":"🌥️"}.get(sky, "🌤️")
+
+@st.cache_data(ttl=1800)
+def get_weather_today() -> dict:
+    """오늘 현재 날씨 (기상청 초단기실황)"""
+    try:
+        now = datetime.now()
+        base_date = now.strftime("%Y%m%d")
+        base_time = f"{now.hour:02d}00" if now.minute >= 30 else f"{(now.hour-1)%24:02d}00"
+        params = urllib.parse.urlencode({
+            "serviceKey": KMA_API_KEY, "numOfRows": 10, "pageNo": 1,
+            "dataType": "JSON", "base_date": base_date, "base_time": base_time,
+            "nx": PAJU_NX, "ny": PAJU_NY,
+        })
+        url = f"https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?{params}"
+        req = urllib.request.Request(url, headers={"Accept":"application/json"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = json.loads(r.read().decode())
+        items = {i["category"]: i["obsrValue"]
+                 for i in data["response"]["body"]["items"]["item"]}
+        temp = items.get("T1H", "-")
+        pty  = items.get("PTY", "0")
+        return {"temp": temp, "pty": pty, "sky": "1",
+                "icon": _weather_icon("1", pty),
+                "desc": f"{_parse_pty(pty) if pty != '0' else '맑음'}", "ok": True}
+    except Exception as e:
+        return {"ok": False, "err": str(e)}
+
+@st.cache_data(ttl=3600)
+def get_weather_lastyear() -> dict:
+    """작년 동일 날짜 날씨 (기상청 과거관측 - ASOS 파주 AWS 867)"""
+    try:
+        now = datetime.now()
+        ly = now.replace(year=now.year - 1)
+        params = urllib.parse.urlencode({
+            "serviceKey": KMA_API_KEY, "numOfRows": 1, "pageNo": 1,
+            "dataType": "JSON", "dataCd": "ASOS", "dateCd": "DAY",
+            "startDt": ly.strftime("%Y%m%d"), "endDt": ly.strftime("%Y%m%d"),
+            "stnIds": 867,
+        })
+        url = f"https://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList?{params}"
+        req = urllib.request.Request(url, headers={"Accept":"application/json"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = json.loads(r.read().decode())
+        item = data["response"]["body"]["items"]["item"][0]
+        avg_t = item.get("avgTa", "-")
+        max_t = item.get("maxTa", "-")
+        min_t = item.get("minTa", "-")
+        rain  = item.get("sumRn", "0") or "0"
+        return {"avg": avg_t, "max": max_t, "min": min_t, "rain": rain,
+                "date": ly.strftime("%Y.%m.%d"), "ok": True}
+    except Exception as e:
+        return {"ok": False, "err": str(e)}
+
+def render_weather_card() -> str:
+    today = get_weather_today()
+    ly    = get_weather_lastyear()
+    now   = datetime.now()
+    
+    # 오늘 날씨 섹션
+    if today.get("ok"):
+        icon = today["icon"]
+        temp = today["temp"]
+        desc = today["desc"]
+        today_html = f"""
+        <div class='weather-row'>
+            <span class='weather-icon'>{icon}</span>
+            <div>
+                <div class='weather-temp'>{temp}°C</div>
+                <div class='weather-desc'>{desc} · 파주시</div>
+            </div>
+        </div>"""
+    else:
+        today_html = f"<div class='weather-desc' style='color:#555;'>API 키 미설정<br><span style='font-size:0.62rem;'>data.go.kr에서 기상청 API 키를 발급 후<br>app.py의 KMA_API_KEY에 입력하세요</span></div>"
+
+    # 작년 날씨 섹션
+    if ly.get("ok"):
+        ly_html = f"""
+        <div class='weather-last-year'>
+            <b>작년 동일({ly["date"]})</b><br>
+            평균 {ly["avg"]}°C &nbsp;|&nbsp; 최고 {ly["max"]}°C &nbsp;|&nbsp; 최저 {ly["min"]}°C<br>
+            강수량 {ly["rain"]}mm
+        </div>"""
+    else:
+        ly_html = "<div class='weather-last-year' style='color:#444;'>작년 데이터 조회 불가</div>"
+
+    return f"""
+    <div class='weather-card'>
+        <span class='weather-title'>🌤 TODAY'S WEATHER · PAJU</span>
+        <div class='weather-label'>현재 날씨</div>
+        {today_html}
+        <hr class='weather-divider'>
+        <div class='weather-label'>작년 오늘</div>
+        {ly_html}
+    </div>"""
+
 def edit_event(year: int, month: int, day: int, dept: str, idx: int, new_title: str, new_detail: str):
     key = get_cal_key(year, month, day, dept)
     if key in st.session_state.cal_data:
@@ -508,7 +755,7 @@ def render_calendar_html(year: int, month: int) -> str:
                         <span class='dept-badge has-tooltip'
                             style='background:{bg}; color:{color}; border-left:2px solid {color};'>
                             {title_safe}
-                            <span class='tooltip-text'><b>[{dept}]</b><br>{detail_safe if detail_safe else title_safe}</span>
+                            <span class='tooltip-text'><span class='tooltip-dept'>[{dept}]</span>{detail_safe if detail_safe else title_safe}</span>
                         </span> """
                     dept_rows += f"<div class='dept-row'>{badges}</div>"
                 else:
@@ -556,16 +803,21 @@ with st.sidebar:
 # ── 헤더 ──────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class='lotte-header'>
-    <div style='display:flex;align-items:center;gap:18px;'>
-        <div style='width:3px;height:40px;background:#c8102e;border-radius:2px;flex-shrink:0;'></div>
+    <div style='display:flex;align-items:center;gap:20px;'>
+        <div style='width:3px;height:38px;background:#c8ff00;border-radius:2px;flex-shrink:0;'></div>
         <div>
-            <div class='lotte-logo'>LOTTE PREMIUM OUTLETS <span style='color:#888;font-weight:300;font-size:1.1rem;letter-spacing:0.12em;'>PAJU</span></div>
+            <div class='lotte-logo'>LOTTE PREMIUM OUTLETS &nbsp;<span class='accent'>PAJU</span></div>
             <div class='lotte-subtitle'>파트너 소통채널 &nbsp;·&nbsp; Partner Communication Hub</div>
         </div>
     </div>
-    <div style='font-size:0.7rem;color:#bbb;letter-spacing:0.1em;text-align:right;line-height:1.8;'>
-        영업기획팀 내부 시스템<br>
-        <span style='color:#e0ddd8;'>FOR INTERNAL USE ONLY</span>
+    <div style='display:flex;align-items:center;gap:16px;'>
+        <div style='text-align:right;'>
+            <div style='font-size:0.58rem;letter-spacing:0.16em;color:#555;text-transform:uppercase;'>Internal Only</div>
+            <div style='font-size:0.7rem;color:#c8ff00;font-weight:600;letter-spacing:0.08em;margin-top:2px;'>영업기획팀</div>
+        </div>
+        <div style='width:36px;height:36px;background:#c8ff00;border-radius:50%;display:flex;align-items:center;justify-content:center;'>
+            <span style='font-size:1.1rem;font-weight:900;color:#111;line-height:1;'>ℓ</span>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -738,7 +990,7 @@ with main_col:
 # ────────────────── 사이드 패널 ───────────────────────────────────────────────
 with side_col:
     # 三 업데이트 버튼
-    upd_btn_label = "≡  업데이트 내역"
+    upd_btn_label = "≡   업데이트 내역"
     if st.button(upd_btn_label, use_container_width=True):
         st.session_state.show_updates = not st.session_state.show_updates
 
@@ -766,7 +1018,7 @@ with side_col:
     st.markdown("<div class='side-panel'>", unsafe_allow_html=True)
     st.markdown("""
     <div class='side-title'>
-        <span style='font-size:0.6rem;letter-spacing:0.18em;color:#c8102e;font-weight:700;display:block;margin-bottom:3px;'>QUICK ACCESS</span>
+        <span class='side-caption'>QUICK ACCESS</span>
         바로가기
     </div>""", unsafe_allow_html=True)
 
@@ -807,6 +1059,9 @@ with side_col:
                 st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 날씨 카드 ─────────────────────────────────────────────────────────────
+    st.markdown(render_weather_card(), unsafe_allow_html=True)
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
@@ -882,9 +1137,10 @@ with side_col:
 
 # ── 푸터 ──────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style='text-align:center; padding:28px 0 16px; font-size:0.68rem;
-     color:#bbb; letter-spacing:0.05em; margin-top:20px'>
-    LOTTE PREMIUM OUTLETS PAJU &nbsp;·&nbsp; 영업기획팀 내부 시스템 &nbsp;·&nbsp;
+<div style='text-align:center; padding:28px 0 16px; font-size:0.64rem;
+     color:#444; letter-spacing:0.12em; margin-top:20px; border-top:1px solid #1e1e1e;'>
+    LOTTE PREMIUM OUTLETS PAJU &nbsp;·&nbsp; 영업기획팀 내부 시스템
+    &nbsp;<span style='color:#c8ff00;'>·</span>&nbsp;
     무단 배포 및 외부 공유 금지
 </div>
 """, unsafe_allow_html=True)
