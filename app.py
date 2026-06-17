@@ -844,32 +844,28 @@ def render_weather_card():
     )
 
     if today.get("ok"):
-        # 아이콘 + 기온 큰 텍스트
+        # 아이콘 + 기온 + 설명 + 상세정보 한 블록으로 가운데 정렬
         st.markdown(
-            f"<div style='display:flex;align-items:center;gap:10px;margin:8px 0 2px;'>"
+            f"<div style='display:flex;flex-direction:column;align-items:center;"
+            f"text-align:center;margin:10px 0 8px;'>"
+            f"<div style='display:flex;align-items:center;justify-content:center;"
+            f"gap:8px;margin-bottom:4px;'>"
             f"<span style='font-size:2.8rem;line-height:1;'>{today['icon']}</span>"
-            f"<span style='font-size:2.4rem;font-weight:800;color:#fff;"
+            f"<span style='font-size:2.6rem;font-weight:800;color:#fff;"
             f"letter-spacing:-0.03em;line-height:1;'>{today['temp']}°</span>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-        # 날씨 설명
-        st.markdown(
-            f"<div style='font-size:0.8rem;color:#aaa;margin-bottom:5px;'>{today['desc']}</div>",
-            unsafe_allow_html=True
-        )
-        # 체감·습도·풍속
-        st.markdown(
-            f"<div style='font-size:0.68rem;color:#777;margin-bottom:8px;'>"
-            f"체감 <b style='color:#ccc;'>{today['feel']}°</b> &nbsp;·&nbsp; "
-            f"습도 <b style='color:#ccc;'>{today['hum']}%</b> &nbsp;·&nbsp; "
-            f"{today['wdir']}풍 <b style='color:#ccc;'>{today['wind']}m/s</b>"
+            f"</div>"
+            f"<div style='font-size:0.82rem;color:#bbb;margin-bottom:6px;'>{today['desc']}</div>"
+            f"<div style='font-size:0.68rem;color:#777;'>"
+            f"체감 <b style='color:#ccc;'>{today['feel']}°</b>"
+            f" &nbsp;·&nbsp; 습도 <b style='color:#ccc;'>{today['hum']}%</b>"
+            f" &nbsp;·&nbsp; {today['wdir']}풍 <b style='color:#ccc;'>{today['wind']}m/s</b>"
+            f"</div>"
             f"</div>",
             unsafe_allow_html=True
         )
         # 최고/최저/강수 뱃지
         st.markdown(
-            f"<div style='display:flex;gap:6px;flex-wrap:wrap;'>"
+            f"<div style='display:flex;gap:6px;flex-wrap:wrap;justify-content:center;'>"
             f"<span style='font-size:0.66rem;background:rgba(255,80,80,0.15);"
             f"color:#ff6868;padding:3px 8px;border-radius:4px;font-weight:700;'>"
             f"최고 {today['hi']}°</span>"
@@ -912,7 +908,8 @@ def render_weather_card():
             diff_str = (f" &nbsp;<span style='color:{col};font-weight:700;font-size:0.7rem;'>"
                         f"{abs(diff)}° {arrow}</span>")
         st.markdown(
-            f"<div style='font-size:0.7rem;color:#666;margin-top:5px;line-height:1.8;'>"
+            f"<div style='font-size:0.7rem;color:#666;margin-top:5px;line-height:1.8;"
+            f"text-align:center;'>"
             f"<b style='color:#aaa;'>{ly['date']}</b>{diff_str}<br>"
             f"최고 <b style='color:#ff6868;'>{ly['hi']}°</b>"
             f" / 최저 <b style='color:#60a8ff;'>{ly['lo']}°</b>"
