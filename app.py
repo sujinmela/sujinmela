@@ -702,7 +702,12 @@ def get_openmeteo_lastyear() -> dict:
     try:
         from datetime import date as _date
         now = datetime.now()
-        ly  = now.replace(year=now.year - 1)
+        # 요일 기준 동일 주차 작년 날짜 계산
+        # 예) 올해 6/17(수) → 작년 같은 요일인 수요일 찾기
+        # 작년 같은 날짜에서 요일 차이만큼 보정
+        ly_same_date = now.replace(year=now.year - 1)
+        weekday_diff = now.weekday() - ly_same_date.weekday()  # 오늘요일 - 작년요일
+        ly = ly_same_date + timedelta(days=weekday_diff)
         ds  = ly.strftime("%Y-%m-%d")
         url = (
             "https://archive-api.open-meteo.com/v1/archive"
@@ -720,7 +725,7 @@ def get_openmeteo_lastyear() -> dict:
             "hi":   round(d["temperature_2m_max"][0], 1),
             "lo":   round(d["temperature_2m_min"][0], 1),
             "rain": round(d["precipitation_sum"][0] or 0, 1),
-            "date": ly.strftime("%Y.%m.%d"),
+            "date": ly.strftime("%Y.%m.%d") +  ["(월)","(화)","(수)","(목)","(금)","(토)","(일)"][ly.weekday()],
         }
     except Exception as e:
         return {"ok": False, "err": str(e)[:80]}
