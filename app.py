@@ -587,16 +587,20 @@ div[data-testid="stForm"] {{
 .stExpander summary:hover {{
     background: rgba(200,255,0,0.06) !important;
 }}
-/* _arrow_right 텍스트 노드 완전 숨김 */
-.stExpander summary > span:first-child {{
-    display: none !important;
+/* expander summary 안 모든 텍스트 흰색 */
+.stExpander summary p,
+.stExpander summary span,
+.stExpander summary div {{
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
 }}
 /* 화살표 SVG 색상 */
 .stExpander summary svg {{
     fill: #c8ff00 !important;
     min-width: 16px !important;
 }}
-/* expander p 태그 여백 */
+/* expander 내부 여백 */
 .stExpander [data-testid="stExpanderDetails"] {{
     padding-top: 8px !important;
 }}
@@ -1107,7 +1111,7 @@ with main_col:
 
     # ── 공지 등록 (인증된 경우만) ─────────────────────────────────────────────
     if st.session_state.authenticated:
-        with st.expander("＋  공지 등록", expanded=st.session_state.show_admin):
+        with st.expander("➕ 공지 등록", expanded=st.session_state.show_admin):
             with st.form("add_event_form", clear_on_submit=True):
                 f_col1, f_col2 = st.columns(2)
                 with f_col1:
@@ -1139,7 +1143,7 @@ with main_col:
                         st.rerun()
 
         # ── 공지 수정 / 삭제 ────────────────────────────────────────────────
-        with st.expander("／  공지 수정 · 삭제"):
+        with st.expander("✏️ 공지 수정 / 삭제"):
             md_col1, md_col2, md_col3, md_col4 = st.columns(4)
             with md_col1:
                 md_year = st.number_input("년도 ", min_value=2020, max_value=2035,
@@ -1315,7 +1319,7 @@ with side_col:
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        with st.expander("설정  바로가기 관리"):
+        with st.expander("⚙️ 바로가기 관리"):
             shortcuts = st.session_state.shortcuts  # 로컬 참조
             # ── 순서 조정 ─────────────────────────────────────────────────
             ordered_keys = [k for k, _ in get_ordered_shortcuts()]
