@@ -565,7 +565,7 @@ div[data-testid="stForm"] {{
     border: 1px solid #2a2a2a !important;
     border-radius: 6px !important;
 }}
-/* expander 헤더 글씨 명확하게 */
+/* expander 헤더 */
 .stExpander summary {{
     color: #ffffff !important;
     font-weight: 600 !important;
@@ -574,9 +574,18 @@ div[data-testid="stForm"] {{
 .stExpander summary:hover {{
     background: rgba(200,255,0,0.06) !important;
 }}
-/* expander 화살표 아이콘 */
+/* _arrow_right 텍스트 노드 완전 숨김 */
+.stExpander summary > span:first-child {{
+    display: none !important;
+}}
+/* 화살표 SVG 색상 */
 .stExpander summary svg {{
     fill: #c8ff00 !important;
+    min-width: 16px !important;
+}}
+/* expander p 태그 여백 */
+.stExpander [data-testid="stExpanderDetails"] {{
+    padding-top: 8px !important;
 }}
 
 /* ── 입력 필드 가독성 개선 ── */
@@ -650,6 +659,20 @@ div[data-testid="stForm"] {{
 p, span, div, label {{ color: var(--white); }}
 </style>
 <script>
+// _arrow_right 텍스트 제거
+function removeArrowText() {{
+    document.querySelectorAll('summary').forEach(function(s) {{
+        s.childNodes.forEach(function(node) {{
+            if (node.nodeType === 3 && node.textContent.includes('_arrow')) {{
+                node.textContent = '';
+            }}
+        }});
+    }});
+}}
+removeArrowText();
+const observer = new MutationObserver(removeArrowText);
+observer.observe(document.body, {{childList: true, subtree: true}});
+
 document.addEventListener('mousemove', function(e) {{
     const tips = document.querySelectorAll('.tooltip-text');
     tips.forEach(function(tip) {{
