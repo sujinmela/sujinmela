@@ -1,300 +1,777 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime, date
-import calendar
-from pathlib import Path
+import json
 import base64
+import calendar
+from datetime import datetime
+from pathlib import Path
 
-# =========================
-# 기본 설정
-# =========================
-
+# ── 페이지 설정 ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="롯데프리미엄아울렛 파주점 동료사원 포털",
+    page_title="롯데프리미엄아울렛 파주점 동료사원 소통채널",
     page_icon="🏬",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-PASSWORD = "1234"
-
-DEPARTMENTS = {
-    "영업기획팀": "#A50034",
-    "지원팀": "#1E3A5F",
-    "시설팀": "#2E7D32"
+# ── 상수 ──────────────────────────────────────────────────────────────────────
+ADMIN_PASSWORD = "1234"   # 운영자 비밀번호 (4자리)
+DATA_FILE = Path("calendar_data.json")
+SHORTCUTS_FILE = Path("shortcuts_data.json")
+DEPT_COLORS = {
+    "영업기획팀": "#c8102e",   # 롯데 레드
+    "지원팀":   "#1a3a5c",   # 딥 네이비
+    "시설팀":   "#5a5a5a",   # 차콜
 }
+DEPT_BG = {
+    "영업기획팀": "rgba(200,16,46,0.10)",
+    "지원팀":   "rgba(26,58,92,0.10)",
+    "시설팀":   "rgba(90,90,90,0.10)",
+}
+DEPTS = ["영업기획팀", "지원팀", "시설팀"]
 
-NOTICE_FILE = Path("data/notices.csv")
-SHORTCUT_FILE = Path("data/shortcuts.csv")
+# ── 데이터 로드 / 저장 ─────────────────────────────────────────────────────
+def load_data(path: Path) -> dict:
+    if path.exists():
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
 
-NOTICE_FILE.parent.mkdir(exist_ok=True)
+def save_data(path: Path, data: dict):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-# =========================
-# 파일 초기화
-# =========================
+if "cal_data" not in st.session_state:
+    st.session_state.cal_data = load_data(DATA_FILE)
+if "shortcuts" not in st.session_state:
+    st.session_state.shortcuts = load_data(SHORTCUTS_FILE)
+if "updates" not in st.session_state:
+    st.session_state.updates = st.session_state.cal_data.get("__updates__", [])
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "show_updates" not in st.session_state:
+    st.session_state.show_updates = False
+if "show_admin" not in st.session_state:
+    st.session_state.show_admin = False
+if "show_shortcut_admin" not in st.session_state:
+    st.session_state.show_shortcut_admin = False
+if "view_month" not in st.session_state:
+    st.session_state.view_month = datetime.today().month
+if "view_year" not in st.session_state:
+    st.session_state.view_year = datetime.today().year
+if "board_key" not in st.session_state:
+    st.session_state.board_key = None   # 현재 열린 게시판 shortcut key
 
-if not NOTICE_FILE.exists():
-    pd.DataFrame(columns=[
-        "date",
-        "department",
-        "title",
-        "detail",
-        "created_at"
-    ]).to_csv(NOTICE_FILE, index=False)
+# ── 배경 이미지 인코딩 ─────────────────────────────────────────────────────
+def get_bg_base64() -> str:
+    img_path = Path("paju_bg.png")
+    if img_path.exists():
+        with open(img_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return ""
 
-if not SHORTCUT_FILE.exists():
-    pd.DataFrame([
-        ["매장안내", "https://www.lotteshopping.com/store/main?cstrCd=0339"],
-        ["주요시설", ""],
-        ["파트너포털", ""],
-        ["온라인 계정 생성", ""],
-        ["직원식당", ""],
-        ["직원주차", ""],
-        ["이벤트홀", ""],
-        ["사원증/유니폼", ""],
-        ["점포 조직도", ""],
-        ["POS/PDA", ""]
-    ], columns=["name", "url"]).to_csv(SHORTCUT_FILE, index=False)
-
-# =========================
-# 데이터 로드
-# =========================
-
-notices = pd.read_csv(NOTICE_FILE)
-shortcuts = pd.read_csv(SHORTCUT_FILE)
-
-# =========================
-# 배경 이미지
-# =========================
-
-bg_path = Path("assets/paju_bg.jpg")
-
-if bg_path.exists():
-    with open(bg_path, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode()
-
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background:
-                linear-gradient(
-                    rgba(255,255,255,0.90),
-                    rgba(255,255,255,0.92)
-                ),
-                url("data:image/jpeg;base64,{encoded}");
-            background-size: cover;
-            background-attachment: fixed;
-        }}
-
-        .main-title {{
-            background:#A50034;
-            color:white;
-            padding:18px 24px;
-            border-radius:16px;
-            font-size:28px;
-            font-weight:700;
-            margin-bottom:20px;
-        }}
-
-        .calendar-cell {{
-            border:1px solid #E5E5E5;
-            background:rgba(255,255,255,0.92);
-            border-radius:12px;
-            padding:10px;
-            min-height:180px;
-        }}
-
-        .notice-item {{
-            color:white;
-            padding:4px 8px;
-            margin:4px 0;
-            border-radius:8px;
-            font-size:12px;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-        }}
-
-        .shortcut-btn {{
-            display:block;
-            text-align:center;
-            padding:12px;
-            margin-bottom:10px;
-            background:#ffffff;
-            border:1px solid #dddddd;
-            border-radius:12px;
-            color:#333333;
-            text-decoration:none;
-            font-weight:600;
-        }}
-
-        .shortcut-btn:hover {{
-            border-color:#A50034;
-            color:#A50034;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-# =========================
-# 헤더
-# =========================
-
-st.markdown(
-    '<div class="main-title">롯데프리미엄아울렛 파주점 동료사원 포털</div>',
-    unsafe_allow_html=True
+BG_B64 = get_bg_base64()
+bg_css = (
+    f"background-image: url('data:image/png;base64,{BG_B64}');"
+    "background-size: cover; background-position: center; background-attachment: fixed;"
+    if BG_B64 else ""
 )
 
-left, right = st.columns([4, 1])
+# ── 글로벌 CSS ────────────────────────────────────────────────────────────────
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
-# =========================
-# 캘린더
-# =========================
+/* 전체 배경 */
+.stApp {{
+    {bg_css}
+    background-color: #f2f0ec;
+}}
+.stApp::before {{
+    content: '';
+    position: fixed; inset: 0;
+    background: rgba(242,240,236,0.82);
+    z-index: 0;
+    pointer-events: none;
+}}
+section[data-testid="stMain"] > div {{
+    position: relative; z-index: 1;
+}}
 
-with left:
+/* 폰트 전역 */
+html, body, [class*="css"] {{
+    font-family: 'Noto Sans KR', sans-serif;
+    color: #1a1a1a;
+}}
 
-    today = date.today()
+/* 헤더 */
+.lotte-header {{
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 2px solid #c8102e;
+    padding: 18px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+}}
+.lotte-logo {{
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #c8102e;
+    letter-spacing: 0.04em;
+}}
+.lotte-subtitle {{
+    font-size: 0.78rem;
+    color: #888;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+    text-transform: uppercase;
+}}
 
-    c1, c2 = st.columns([1, 1])
+/* 캘린더 컨테이너 */
+.cal-wrap {{
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.09);
+    padding: 28px 24px 24px;
+    margin: 0;
+}}
+.cal-month-title {{
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    letter-spacing: 0.02em;
+    margin-bottom: 18px;
+    border-left: 4px solid #c8102e;
+    padding-left: 12px;
+}}
 
-    year = c1.selectbox(
-        "연도",
-        range(today.year - 1, today.year + 3),
-        index=1
-    )
+/* 캘린더 테이블 */
+.cal-table {{
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}}
+.cal-table th {{
+    background: #1a3a5c;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 8px 0;
+    text-align: center;
+    border: 1px solid #1a3a5c;
+}}
+.cal-table th.sun {{ background: #c8102e; }}
+.cal-table th.sat {{ background: #3a6491; }}
 
-    month = c2.selectbox(
-        "월",
-        range(1, 13),
-        index=today.month - 1
-    )
+.cal-cell {{
+    vertical-align: top;
+    border: 1px solid #e0ddd8;
+    padding: 6px 5px 4px;
+    height: 110px;
+    background: rgba(255,255,255,0.7);
+    transition: background 0.2s;
+}}
+.cal-cell:hover {{ background: rgba(255,255,255,0.96); }}
+.cal-cell.today {{ background: rgba(200,16,46,0.04); border-color: #c8102e; }}
+.cal-cell.other-month {{ background: rgba(240,240,240,0.3); }}
 
+.day-num {{
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    display: block;
+}}
+.day-num.sun {{ color: #c8102e; }}
+.day-num.sat {{ color: #2a5fa5; }}
+
+/* 부서별 공지 배지 */
+.dept-row {{
+    margin-bottom: 2px;
+    min-height: 20px;
+}}
+.dept-badge {{
+    display: inline-block;
+    font-size: 0.64rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 3px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+    position: relative;
+    letter-spacing: 0.01em;
+    transition: opacity 0.15s;
+}}
+.dept-badge:hover {{ opacity: 0.85; }}
+
+/* 툴팁 */
+.has-tooltip {{ position: relative; }}
+.has-tooltip .tooltip-text {{
+    visibility: hidden;
+    opacity: 0;
+    width: 220px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    border-radius: 6px;
+    padding: 8px 10px;
+    position: absolute;
+    z-index: 9999;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    transition: opacity 0.2s;
+    pointer-events: none;
+    white-space: normal;
+    word-break: keep-all;
+}}
+.has-tooltip:hover .tooltip-text {{
+    visibility: visible;
+    opacity: 1;
+}}
+
+/* 범례 */
+.legend-wrap {{
+    display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap;
+}}
+.legend-item {{
+    display: flex; align-items: center; gap: 5px;
+    font-size: 0.72rem; color: #555;
+}}
+.legend-dot {{
+    width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+}}
+
+/* 사이드 패널 */
+.side-panel {{
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.09);
+    padding: 22px 18px;
+}}
+.side-title {{
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.0rem;
+    font-weight: 700;
+    color: #1a3a5c;
+    border-bottom: 1px solid #e0ddd8;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    letter-spacing: 0.02em;
+}}
+
+/* 바로가기 버튼 */
+.shortcut-btn {{
+    display: block;
+    width: 100%;
+    background: #1a3a5c;
+    color: #fff !important;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    padding: 10px 0;
+    border-radius: 5px;
+    text-align: center;
+    margin-bottom: 8px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+    cursor: pointer;
+    border: none;
+}}
+.shortcut-btn:hover {{
+    background: #c8102e;
+    transform: translateY(-1px);
+    text-decoration: none;
+}}
+.shortcut-btn.red {{
+    background: #c8102e;
+}}
+.shortcut-btn.red:hover {{
+    background: #a00d25;
+}}
+
+/* 업데이트 패널 */
+.update-panel {{
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e0ddd8;
+    padding: 16px 18px;
+    margin-top: 12px;
+    max-height: 340px;
+    overflow-y: auto;
+}}
+.update-item {{
+    border-bottom: 1px solid #f0ede8;
+    padding: 8px 0;
+    font-size: 0.78rem;
+    color: #333;
+    line-height: 1.55;
+}}
+.update-item:last-child {{ border-bottom: none; }}
+.update-date {{
+    font-size: 0.68rem;
+    color: #aaa;
+    margin-top: 2px;
+}}
+
+/* 게시판 */
+.board-wrap {{
+    background: rgba(255,255,255,0.9);
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    padding: 24px 28px;
+    margin-top: 16px;
+}}
+.board-title {{
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin-bottom: 16px;
+    border-left: 4px solid #c8102e;
+    padding-left: 10px;
+}}
+.board-item {{
+    border-bottom: 1px solid #f0ede8;
+    padding: 10px 4px;
+}}
+.board-item:last-child {{ border-bottom: none; }}
+.board-item-title {{
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1a1a1a;
+}}
+.board-item-body {{
+    font-size: 0.78rem;
+    color: #666;
+    margin-top: 3px;
+}}
+.board-item-meta {{
+    font-size: 0.68rem;
+    color: #bbb;
+    margin-top: 3px;
+}}
+
+/* Streamlit 기본 스타일 오버라이드 */
+div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
+.stButton > button {{
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 5px;
+    transition: all 0.2s;
+}}
+div[data-testid="stForm"] {{
+    background: rgba(255,255,255,0.9);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid #e0ddd8;
+}}
+.stSelectbox label, .stTextInput label, .stTextArea label {{
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    color: #1a3a5c !important;
+}}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ── 유틸 ──────────────────────────────────────────────────────────────────────
+def get_cal_key(year: int, month: int, day: int, dept: str) -> str:
+    return f"{year}-{month:02d}-{day:02d}|{dept}"
+
+def get_day_events(year: int, month: int, day: int) -> dict:
+    """날짜의 부서별 이벤트 목록 반환"""
+    result = {d: [] for d in DEPTS}
+    data = st.session_state.cal_data
+    for dept in DEPTS:
+        key = get_cal_key(year, month, day, dept)
+        if key in data:
+            result[dept] = data[key]
+    return result
+
+def add_event(year: int, month: int, day: int, dept: str, title: str, detail: str):
+    key = get_cal_key(year, month, day, dept)
+    if key not in st.session_state.cal_data:
+        st.session_state.cal_data[key] = []
+    st.session_state.cal_data[key].append({"title": title, "detail": detail})
+    # 업데이트 로그
+    log = {
+        "ts": datetime.now().strftime("%Y.%m.%d %H:%M"),
+        "dept": dept,
+        "title": title,
+        "date": f"{year}.{month:02d}.{day:02d}",
+    }
+    st.session_state.updates.insert(0, log)
+    st.session_state.cal_data["__updates__"] = st.session_state.updates
+    save_data(DATA_FILE, st.session_state.cal_data)
+
+def delete_event(year: int, month: int, day: int, dept: str, idx: int):
+    key = get_cal_key(year, month, day, dept)
+    if key in st.session_state.cal_data:
+        items = st.session_state.cal_data[key]
+        if 0 <= idx < len(items):
+            removed = items.pop(idx)
+            if not items:
+                del st.session_state.cal_data[key]
+            log = {
+                "ts": datetime.now().strftime("%Y.%m.%d %H:%M"),
+                "dept": f"[삭제] {dept}",
+                "title": removed["title"],
+                "date": f"{year}.{month:02d}.{day:02d}",
+            }
+            st.session_state.updates.insert(0, log)
+            st.session_state.cal_data["__updates__"] = st.session_state.updates
+            save_data(DATA_FILE, st.session_state.cal_data)
+
+
+# ── 캘린더 HTML 생성 ──────────────────────────────────────────────────────────
+def render_calendar_html(year: int, month: int) -> str:
+    today = datetime.today()
     cal = calendar.monthcalendar(year, month)
+    day_headers = ["일", "월", "화", "수", "목", "금", "토"]
+    cls_map = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
 
-    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
-
-    cols = st.columns(7)
-
-    for idx, day in enumerate(weekdays):
-        cols[idx].markdown(f"### {day}")
-
+    rows_html = ""
     for week in cal:
-
-        week_cols = st.columns(7)
-
-        for i, day in enumerate(week):
-
+        row = ""
+        for wi, day in enumerate(week):
             if day == 0:
-                week_cols[i].empty()
+                row += "<td class='cal-cell other-month'></td>"
                 continue
+            is_today = (year == today.year and month == today.month and day == today.day)
+            cell_cls = "cal-cell" + (" today" if is_today else "")
+            day_cls = "day-num " + cls_map[wi]
 
-            current_date = f"{year}-{month:02d}-{day:02d}"
+            day_html = f"<span class='{day_cls}'>{day}</span>"
 
-            day_notices = notices[
-                notices["date"] == current_date
-            ]
+            events = get_day_events(year, month, day)
+            dept_rows = ""
+            for dept in DEPTS:
+                color = DEPT_COLORS[dept]
+                bg = DEPT_BG[dept]
+                evs = events[dept]
+                if evs:
+                    badges = ""
+                    for ev in evs:
+                        detail_safe = ev['detail'].replace('"', '&quot;').replace("'", "&#39;")
+                        title_safe = ev['title'].replace('"', '&quot;').replace("'", "&#39;")
+                        badges += f"""
+                        <span class='dept-badge has-tooltip'
+                            style='background:{bg}; color:{color}; border-left:2px solid {color};'>
+                            {title_safe}
+                            <span class='tooltip-text'><b>[{dept}]</b><br>{detail_safe if detail_safe else title_safe}</span>
+                        </span> """
+                    dept_rows += f"<div class='dept-row'>{badges}</div>"
+                else:
+                    dept_rows += "<div class='dept-row'></div>"
 
-            html = f'<div class="calendar-cell"><b>{day}</b><hr>'
+            row += f"<td class='{cell_cls}'>{day_html}{dept_rows}</td>"
+        rows_html += f"<tr>{row}</tr>"
 
-            for dept in DEPARTMENTS.keys():
-
-                dept_notice = day_notices[
-                    day_notices["department"] == dept
-                ]
-
-                html += f"<div style='font-size:11px;color:#666'>{dept}</div>"
-
-                for _, row in dept_notice.iterrows():
-
-                    html += f"""
-                    <div class="notice-item"
-                         style="background:{DEPARTMENTS[dept]}"
-                         title="{row['detail']}">
-                         {row['title']}
-                    </div>
-                    """
-
-            html += "</div>"
-
-            week_cols[i].markdown(html, unsafe_allow_html=True)
-
-# =========================
-# 우측 메뉴
-# =========================
-
-with right:
-
-    st.subheader("🔗 바로가기")
-
-    for _, row in shortcuts.iterrows():
-
-        url = row["url"] if pd.notna(row["url"]) else "#"
-
-        st.markdown(
-            f"""
-            <a href="{url}" target="_blank" class="shortcut-btn">
-                {row['name']}
-            </a>
-            """,
-            unsafe_allow_html=True
-        )
-
-# =========================
-# 관리자 입력
-# =========================
-
-st.divider()
-
-with st.expander("🔒 관리자 등록"):
-
-    password = st.text_input(
-        "비밀번호 4자리",
-        type="password"
+    header_html = "".join(
+        f"<th class='{cls_map[i]}'>{h}</th>" for i, h in enumerate(day_headers)
     )
 
-    if password == PASSWORD:
+    return f"""
+    <div class='cal-wrap'>
+        <div class='cal-month-title'>{year}년 {month}월</div>
+        <table class='cal-table'>
+            <thead><tr>{header_html}</tr></thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+        <div class='legend-wrap'>
+            {''.join(f"<div class='legend-item'><div class='legend-dot' style='background:{DEPT_COLORS[d]}'></div>{d}</div>" for d in DEPTS)}
+        </div>
+    </div>
+    """
 
-        with st.form("notice_form"):
 
-            notice_date = st.date_input("일자")
+# ── 사이드바 (관리자 로그인) ──────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### 🔐 관리자")
+    if not st.session_state.authenticated:
+        pw = st.text_input("비밀번호 (4자리)", type="password", max_chars=4)
+        if st.button("로그인"):
+            if pw == ADMIN_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("비밀번호가 올바르지 않습니다.")
+    else:
+        st.success("관리자 인증됨 ✔")
+        if st.button("로그아웃"):
+            st.session_state.authenticated = False
+            st.rerun()
 
-            department = st.selectbox(
-                "부서",
-                list(DEPARTMENTS.keys())
+
+# ── 헤더 ──────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class='lotte-header'>
+    <div>
+        <div class='lotte-logo'>🏬 롯데프리미엄아울렛 파주점</div>
+        <div class='lotte-subtitle'>동료사원 소통채널 · Partner Communication Hub</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height:18px'></div>", unsafe_allow_html=True)
+
+# ── 메인 레이아웃 ─────────────────────────────────────────────────────────────
+main_col, side_col = st.columns([7.5, 2.5], gap="medium")
+
+# ────────────────── 캘린더 영역 ───────────────────────────────────────────────
+with main_col:
+    # 월 이동
+    nav_l, nav_mid, nav_r = st.columns([1, 3, 1])
+    with nav_l:
+        if st.button("◀ 이전달"):
+            m, y = st.session_state.view_month, st.session_state.view_year
+            m -= 1
+            if m < 1:
+                m, y = 12, y - 1
+            st.session_state.view_month, st.session_state.view_year = m, y
+            st.rerun()
+    with nav_mid:
+        st.markdown(
+            f"<p style='text-align:center;font-size:0.85rem;color:#888;margin:8px 0'>"
+            f"{st.session_state.view_year}년 {st.session_state.view_month}월</p>",
+            unsafe_allow_html=True,
+        )
+    with nav_r:
+        if st.button("다음달 ▶"):
+            m, y = st.session_state.view_month, st.session_state.view_year
+            m += 1
+            if m > 12:
+                m, y = 1, y + 1
+            st.session_state.view_month, st.session_state.view_year = m, y
+            st.rerun()
+
+    # 캘린더 렌더링
+    cal_html = render_calendar_html(
+        st.session_state.view_year, st.session_state.view_month
+    )
+    st.markdown(cal_html, unsafe_allow_html=True)
+
+    st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
+    # ── 공지 등록 (인증된 경우만) ─────────────────────────────────────────────
+    if st.session_state.authenticated:
+        with st.expander("➕ 공지 등록", expanded=st.session_state.show_admin):
+            with st.form("add_event_form", clear_on_submit=True):
+                f_col1, f_col2 = st.columns(2)
+                with f_col1:
+                    dept_sel = st.selectbox("부서 선택", DEPTS)
+                    year_sel = st.number_input(
+                        "년도", min_value=2020, max_value=2035,
+                        value=st.session_state.view_year
+                    )
+                    month_sel = st.number_input(
+                        "월", min_value=1, max_value=12,
+                        value=st.session_state.view_month
+                    )
+                    day_sel = st.number_input("일", min_value=1, max_value=31, value=1)
+                with f_col2:
+                    title_in = st.text_input("제목 (캘린더 표시)", max_chars=20)
+                    detail_in = st.text_area(
+                        "상세 내용 (툴팁, 50자 미만)", max_chars=49, height=100
+                    )
+                submitted = st.form_submit_button("등록", use_container_width=True)
+                if submitted:
+                    if not title_in.strip():
+                        st.error("제목을 입력해주세요.")
+                    else:
+                        add_event(
+                            int(year_sel), int(month_sel), int(day_sel),
+                            dept_sel, title_in.strip(), detail_in.strip()
+                        )
+                        st.success("등록되었습니다.")
+                        st.rerun()
+
+        # ── 공지 삭제 ──────────────────────────────────────────────────────
+        with st.expander("🗑️ 공지 삭제"):
+            d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+            with d_col1:
+                del_year = st.number_input("년도 ", min_value=2020, max_value=2035,
+                                           value=st.session_state.view_year, key="dy")
+            with d_col2:
+                del_month = st.number_input("월 ", min_value=1, max_value=12,
+                                            value=st.session_state.view_month, key="dm")
+            with d_col3:
+                del_day = st.number_input("일 ", min_value=1, max_value=31,
+                                          value=1, key="dd")
+            with d_col4:
+                del_dept = st.selectbox("부서 ", DEPTS, key="ddept")
+            del_key = get_cal_key(int(del_year), int(del_month), int(del_day), del_dept)
+            items = st.session_state.cal_data.get(del_key, [])
+            if items:
+                for i, it in enumerate(items):
+                    c1, c2 = st.columns([6, 1])
+                    c1.markdown(f"**{it['title']}** — {it['detail']}")
+                    if c2.button("삭제", key=f"del_{del_key}_{i}"):
+                        delete_event(int(del_year), int(del_month), int(del_day), del_dept, i)
+                        st.rerun()
+            else:
+                st.info("해당 날짜/부서에 등록된 공지가 없습니다.")
+
+    # ── 게시판 영역 ───────────────────────────────────────────────────────────
+    if st.session_state.board_key:
+        sc = st.session_state.shortcuts.get(st.session_state.board_key, {})
+        stype = sc.get("type", "board")
+        if stype == "board":
+            st.markdown(f"<div class='board-wrap'>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='board-title'>📋 {sc.get('label', '')} 게시판</div>",
+                unsafe_allow_html=True,
             )
+            board_posts = sc.get("posts", [])
+            if board_posts:
+                for post in board_posts:
+                    st.markdown(f"""
+                    <div class='board-item'>
+                        <div class='board-item-title'>{post['title']}</div>
+                        <div class='board-item-body'>{post.get('body','')}</div>
+                        <div class='board-item-meta'>{post.get('date','')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("게시물이 없습니다.")
 
-            title = st.text_input(
-                "제목",
-                max_chars=20
-            )
-
-            detail = st.text_area(
-                "상세내용",
-                max_chars=50
-            )
-
-            submit = st.form_submit_button("등록")
-
-            if submit:
-
-                new_row = pd.DataFrame([{
-                    "date": notice_date.strftime("%Y-%m-%d"),
-                    "department": department,
-                    "title": title,
-                    "detail": detail,
-                    "created_at": datetime.now()
-                }])
-
-                updated = pd.concat(
-                    [notices, new_row],
-                    ignore_index=True
-                )
-
-                updated.to_csv(NOTICE_FILE, index=False)
-
-                st.success("등록 완료!")
+            if st.session_state.authenticated:
+                with st.form(f"board_post_{st.session_state.board_key}"):
+                    bp_title = st.text_input("게시물 제목", max_chars=50)
+                    bp_body = st.text_area("내용", max_chars=500, height=100)
+                    if st.form_submit_button("게시"):
+                        if bp_title:
+                            sc.setdefault("posts", []).insert(0, {
+                                "title": bp_title,
+                                "body": bp_body,
+                                "date": datetime.now().strftime("%Y.%m.%d"),
+                            })
+                            save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                            st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+            if st.button("게시판 닫기"):
+                st.session_state.board_key = None
                 st.rerun()
 
-    elif password:
-        st.error("비밀번호가 일치하지 않습니다.")
+
+# ────────────────── 사이드 패널 ───────────────────────────────────────────────
+with side_col:
+    # 三 업데이트 버튼
+    upd_btn_label = "≡  업데이트 내역"
+    if st.button(upd_btn_label, use_container_width=True):
+        st.session_state.show_updates = not st.session_state.show_updates
+
+    if st.session_state.show_updates:
+        st.markdown("<div class='update-panel'>", unsafe_allow_html=True)
+        updates = st.session_state.updates
+        if updates:
+            for u in updates[:30]:
+                dept_name = u['dept'].replace('[삭제] ', '')
+                dept_color = DEPT_COLORS.get(dept_name, "#888")
+                dept_badge = f"<span style='color:{dept_color};font-weight:700'>{u['dept']}</span>"
+                st.markdown(f"""
+                <div class='update-item'>
+                    {dept_badge} · {u['date']}<br>
+                    <b>{u['title']}</b>
+                    <div class='update-date'>{u['ts']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown("<p style='font-size:0.78rem;color:#aaa'>업데이트 내역이 없습니다.</p>",
+                        unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    st.markdown("<div class='side-panel'>", unsafe_allow_html=True)
+    st.markdown("<div class='side-title'>바로가기</div>", unsafe_allow_html=True)
+
+    # 바로가기 버튼 렌더링
+    shortcuts = st.session_state.shortcuts
+    for key, sc in shortcuts.items():
+        label = sc.get("label", key)
+        stype = sc.get("type", "board")
+        url = sc.get("url", "")
+        is_red = sc.get("red", False)
+        btn_cls = "shortcut-btn red" if is_red else "shortcut-btn"
+
+        if stype == "url" and url:
+            st.markdown(
+                f"<a href='{url}' target='_blank' class='{btn_cls}'>{label}</a>",
+                unsafe_allow_html=True,
+            )
+        elif stype == "file":
+            file_path = Path(sc.get("file_path", ""))
+            if file_path.exists():
+                with open(file_path, "rb") as fobj:
+                    st.download_button(
+                        label=label,
+                        data=fobj.read(),
+                        file_name=file_path.name,
+                        use_container_width=True,
+                        key=f"dl_{key}",
+                    )
+            else:
+                st.markdown(f"<span class='{btn_cls}' style='opacity:.5'>{label} (파일없음)</span>",
+                            unsafe_allow_html=True)
+        else:  # board
+            if st.button(label, key=f"sc_{key}", use_container_width=True):
+                st.session_state.board_key = (
+                    None if st.session_state.board_key == key else key
+                )
+                st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
+    if st.session_state.authenticated:
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+        with st.expander("⚙️ 바로가기 관리"):
+            with st.form("add_shortcut", clear_on_submit=True):
+                sc_label = st.text_input("버튼 이름", max_chars=15)
+                sc_key_in = st.text_input("키 (영문/숫자, 중복불가)", max_chars=20)
+                sc_type = st.selectbox("타입", ["board", "url", "file"])
+                sc_url = st.text_input("URL (타입=url일 때)", placeholder="https://...")
+                sc_red = st.checkbox("빨간 버튼")
+                if st.form_submit_button("추가"):
+                    if sc_label and sc_key_in:
+                        sc_key_in_clean = sc_key_in.strip().replace(" ", "_")
+                        st.session_state.shortcuts[sc_key_in_clean] = {
+                            "label": sc_label,
+                            "type": sc_type,
+                            "url": sc_url,
+                            "red": sc_red,
+                            "posts": [],
+                        }
+                        save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                        st.rerun()
+            # 삭제
+            if shortcuts:
+                del_sc_key = st.selectbox("삭제할 버튼", list(shortcuts.keys()))
+                if st.button("삭제"):
+                    del st.session_state.shortcuts[del_sc_key]
+                    save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                    st.rerun()
+
+
+# ── 푸터 ──────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style='text-align:center; padding:28px 0 16px; font-size:0.68rem;
+     color:#bbb; letter-spacing:0.05em; margin-top:20px'>
+    LOTTE PREMIUM OUTLETS PAJU &nbsp;·&nbsp; 영업기획팀 내부 시스템 &nbsp;·&nbsp;
+    무단 배포 및 외부 공유 금지
+</div>
+""", unsafe_allow_html=True)
