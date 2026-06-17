@@ -343,26 +343,35 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     border-radius: 10px;
     border: 1px solid #2a2a2a;
     box-shadow: 0 4px 32px rgba(0,0,0,0.4);
-    padding: 20px 16px;
+    padding: 16px 14px 14px;
+    margin-bottom: 8px;
 }}
 .side-title {{
     font-family: 'Pretendard Variable', Pretendard, sans-serif;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
     color: var(--white);
     border-bottom: 1px solid #2a2a2a;
-    padding-bottom: 10px;
-    margin-bottom: 14px;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
     letter-spacing: 0.04em;
 }}
 .side-caption {{
-    font-size: 0.58rem;
+    font-size: 0.55rem;
     letter-spacing: 0.18em;
     color: var(--lime);
     font-weight: 700;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
     text-transform: uppercase;
+}}
+/* 바로가기 버튼 간격 줄이기 */
+.shortcut-btn {{
+    margin-bottom: 5px !important;
+}}
+/* 사이드 컬럼 Streamlit 기본 gap 제거 */
+div[data-testid="stVerticalBlock"] > div {{
+    padding-bottom: 0 !important;
 }}
 
 /* ── 바로가기 버튼 ── */
@@ -469,7 +478,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     border: 1px solid #2a2a2a;
     padding: 14px 16px;
     margin-top: 10px;
-    max-height: 320px;
+    max-height: 280px;
     overflow-y: auto;
 }}
 .update-item {{
@@ -864,7 +873,7 @@ def render_weather_card():
     # ── 날씨 카드 컨테이너 시작 ──
     st.markdown(
         "<div style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);"
-        "border-radius:10px;padding:16px 16px 14px;margin-top:4px;"
+        "border-radius:10px;padding:14px 14px 12px;margin-top:0;"
         "backdrop-filter:blur(8px);'>"
         "<span style='font-size:0.56rem;letter-spacing:0.16em;color:#c8ff00;"
         "font-weight:700;text-transform:uppercase;'>🌤 TODAY\'S WEATHER · PAJU</span>",
@@ -1077,9 +1086,9 @@ main_col, side_col = st.columns([7.5, 2.5], gap="medium")
 # ────────────────── 캘린더 영역 ───────────────────────────────────────────────
 with main_col:
     # 월 이동
-    nav_l, nav_mid, nav_r = st.columns([1, 3, 1])
+    nav_l, nav_mid, nav_r = st.columns([1, 5, 1])
     with nav_l:
-        if st.button("◀ 이전달"):
+        if st.button("◀  이전달", key="prev_month"):
             m, y = st.session_state.view_month, st.session_state.view_year
             m -= 1
             if m < 1:
@@ -1088,18 +1097,21 @@ with main_col:
             st.rerun()
     with nav_mid:
         st.markdown(
-            f"<p style='text-align:center;font-size:0.85rem;color:#888;margin:8px 0'>"
+            f"<p style='text-align:center;font-size:0.82rem;color:#777;margin:8px 0;'>"
             f"{st.session_state.view_year}년 {st.session_state.view_month}월</p>",
             unsafe_allow_html=True,
         )
     with nav_r:
-        if st.button("다음달 ▶"):
+        # 우측 끝 정렬: st.button은 기본 좌측이라 HTML로 우정렬 래핑
+        st.markdown("<div style='display:flex;justify-content:flex-end;'>", unsafe_allow_html=True)
+        if st.button("다음달  ▶", key="next_month"):
             m, y = st.session_state.view_month, st.session_state.view_year
             m += 1
             if m > 12:
                 m, y = 1, y + 1
             st.session_state.view_month, st.session_state.view_year = m, y
             st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # 캘린더 렌더링
     cal_html = render_calendar_html(
@@ -1240,10 +1252,13 @@ with main_col:
 
 # ────────────────── 사이드 패널 ───────────────────────────────────────────────
 with side_col:
-    # 三 업데이트 버튼
-    upd_btn_label = "≡   업데이트 내역"
-    if st.button(upd_btn_label, use_container_width=True):
-        st.session_state.show_updates = not st.session_state.show_updates
+    # 三 업데이트 버튼 (우측 정렬)
+    upd_c1, upd_c2 = st.columns([5, 2])
+    with upd_c1:
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+    with upd_c2:
+        if st.button("≡ 업데이트", key="upd_toggle", use_container_width=True):
+            st.session_state.show_updates = not st.session_state.show_updates
 
     if st.session_state.show_updates:
         updates = st.session_state.updates
@@ -1312,7 +1327,6 @@ with side_col:
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         if st.button("⚙️  바로가기 관리", key="toggle_sc_admin", use_container_width=True):
             st.session_state.show_sc_admin = not st.session_state.show_sc_admin
         if st.session_state.show_sc_admin:
