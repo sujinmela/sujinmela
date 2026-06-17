@@ -1278,12 +1278,7 @@ with side_col:
             rows_html = "<p style='font-size:0.78rem;color:#aaa;'>업데이트 내역이 없습니다.</p>"
         st.markdown(f"<div class='update-panel'>{rows_html}</div>", unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class='side-panel'>
-    <div class='side-title'>
-        <span class='side-caption'>QUICK ACCESS</span>
-        바로가기
-    </div>""", unsafe_allow_html=True)
+    st.markdown("<div class='side-panel'>", unsafe_allow_html=True)
 
     # ── 날씨 카드 (바로가기 위에 배치) ──────────────────────────────────────
     render_weather_card()
