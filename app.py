@@ -589,36 +589,18 @@ div[data-testid="stForm"] {{
 .stExpander summary:hover {{
     background: rgba(200,255,0,0.06) !important;
 }}
-/* _arrow_right 텍스트 CSS로 완전 숨김 */
-.stExpander summary > div > span:first-child,
-.stExpander summary span[data-testid="stExpanderToggleIcon"],
-.stExpander summary .streamlit-expanderHeader span:first-child {{
-    display: none !important;
-    width: 0 !important;
-    font-size: 0 !important;
-    opacity: 0 !important;
-}}
-/* expander summary 텍스트 흰색 */
+/* expander summary 텍스트 흰색 - 라벨 포함 */
 .stExpander summary p,
-.stExpander summary span,
+.stExpander summary label,
 .stExpander summary div {{
     color: #ffffff !important;
     font-weight: 600 !important;
     font-size: 0.82rem !important;
 }}
-/* _arrow 포함 span만 font-size 0으로 숨김 */
-.stExpander summary > span {{
-    font-size: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
-    display: inline-block !important;
-    max-width: 0 !important;
-}}
-/* 화살표 SVG 색상 */
+/* 화살표 SVG */
 .stExpander summary svg {{
     fill: #c8ff00 !important;
     min-width: 16px !important;
-    font-size: initial !important;
 }}
 /* expander 내부 여백 */
 .stExpander [data-testid="stExpanderDetails"] {{
@@ -712,27 +694,27 @@ p, span, div, label {{ color: var(--white); }}
 }}
 </style>
 <script>
-// _arrow_right 텍스트 완전 제거
+// _arrow_right 텍스트 제거 (텍스트 노드만, 라벨은 유지)
 function removeArrowText() {{
     document.querySelectorAll('summary').forEach(function(s) {{
-        // 직접 자식 텍스트 노드 제거
         Array.from(s.childNodes).forEach(function(node) {{
-            if (node.nodeType === 3) {{ node.textContent = ''; }}
+            // 순수 텍스트 노드 중 _arrow 포함된 것만 제거
+            if (node.nodeType === 3 && node.textContent.includes('_arrow')) {{
+                node.textContent = '';
+            }}
         }});
-        // 모든 자손에서 _arrow 포함 텍스트 제거
-        s.querySelectorAll('*').forEach(function(el) {{
-            if (!el.children.length && el.textContent && el.textContent.trim().includes('_arrow')) {{
-                el.style.fontSize = '0';
-                el.style.display = 'none';
-                el.textContent = '';
+        // span 중 텍스트만 있고 _arrow 포함된 것 제거
+        s.querySelectorAll('span').forEach(function(span) {{
+            if (!span.children.length && span.textContent && span.textContent.trim().startsWith('_arrow')) {{
+                span.textContent = '';
             }}
         }});
     }});
 }}
 removeArrowText();
-setInterval(removeArrowText, 200);
-const _arrowObs = new MutationObserver(function() {{ removeArrowText(); }});
-_arrowObs.observe(document.body, {{childList: true, subtree: true, characterData: true}});
+setInterval(removeArrowText, 300);
+const _arrowObs = new MutationObserver(removeArrowText);
+_arrowObs.observe(document.body, {{childList: true, subtree: true}});
 
 document.addEventListener('mousemove', function(e) {{
     const tips = document.querySelectorAll('.tooltip-text');
