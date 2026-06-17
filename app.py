@@ -565,6 +565,84 @@ div[data-testid="stForm"] {{
     border: 1px solid #2a2a2a !important;
     border-radius: 6px !important;
 }}
+/* expander 헤더 글씨 명확하게 */
+.stExpander summary {{
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 0.82rem !important;
+}}
+.stExpander summary:hover {{
+    background: rgba(200,255,0,0.06) !important;
+}}
+/* expander 화살표 아이콘 */
+.stExpander summary svg {{
+    fill: #c8ff00 !important;
+}}
+
+/* ── 입력 필드 가독성 개선 ── */
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input {{
+    background: #1a1a1a !important;
+    color: #f0f0f0 !important;
+    border: 1px solid #3a3a3a !important;
+    border-radius: 4px !important;
+    caret-color: #c8ff00 !important;
+}}
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stNumberInput input:focus {{
+    border-color: #c8ff00 !important;
+    box-shadow: 0 0 0 1px rgba(200,255,0,0.3) !important;
+    color: #ffffff !important;
+}}
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder {{
+    color: #555 !important;
+}}
+/* selectbox */
+.stSelectbox > div > div {{
+    background: #1a1a1a !important;
+    color: #f0f0f0 !important;
+    border: 1px solid #3a3a3a !important;
+}}
+.stSelectbox > div > div:focus-within {{
+    border-color: #c8ff00 !important;
+}}
+/* selectbox 드롭다운 옵션 */
+[data-baseweb="select"] * {{
+    background-color: #1a1a1a !important;
+    color: #f0f0f0 !important;
+}}
+[data-baseweb="popover"] {{
+    background: #1e1e1e !important;
+    border: 1px solid #3a3a3a !important;
+}}
+[data-baseweb="option"]:hover {{
+    background: rgba(200,255,0,0.12) !important;
+}}
+/* number input +/- 버튼 */
+.stNumberInput button {{
+    background: #222 !important;
+    color: #ccc !important;
+    border-color: #3a3a3a !important;
+}}
+.stNumberInput button:hover {{
+    background: #c8ff00 !important;
+    color: #111 !important;
+}}
+/* checkbox */
+.stCheckbox label span {{
+    color: #ccc !important;
+}}
+/* file uploader */
+.stFileUploader {{
+    background: #1a1a1a !important;
+    border: 1px dashed #3a3a3a !important;
+    border-radius: 4px !important;
+    color: #888 !important;
+}}
+
 .stInfo {{ background: rgba(200,255,0,0.08) !important; border-color: var(--lime) !important; color: var(--white) !important; }}
 .stSuccess {{ background: rgba(0,200,100,0.1) !important; color: var(--white) !important; }}
 .stError {{ background: rgba(255,80,80,0.1) !important; color: var(--white) !important; }}
@@ -984,7 +1062,7 @@ with main_col:
 
     # ── 공지 등록 (인증된 경우만) ─────────────────────────────────────────────
     if st.session_state.authenticated:
-        with st.expander("➕ 공지 등록", expanded=st.session_state.show_admin):
+        with st.expander("＋  공지 등록", expanded=st.session_state.show_admin):
             with st.form("add_event_form", clear_on_submit=True):
                 f_col1, f_col2 = st.columns(2)
                 with f_col1:
@@ -1016,7 +1094,7 @@ with main_col:
                         st.rerun()
 
         # ── 공지 수정 / 삭제 ────────────────────────────────────────────────
-        with st.expander("✏️ 공지 수정 / 삭제"):
+        with st.expander("／  공지 수정 · 삭제"):
             md_col1, md_col2, md_col3, md_col4 = st.columns(4)
             with md_col1:
                 md_year = st.number_input("년도 ", min_value=2020, max_value=2035,
@@ -1192,7 +1270,7 @@ with side_col:
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        with st.expander("⚙️ 바로가기 관리"):
+        with st.expander("설정  바로가기 관리"):
             shortcuts = st.session_state.shortcuts  # 로컬 참조
             # ── 순서 조정 ─────────────────────────────────────────────────
             ordered_keys = [k for k, _ in get_ordered_shortcuts()]
