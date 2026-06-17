@@ -343,8 +343,8 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     border-radius: 10px;
     border: 1px solid #2a2a2a;
     box-shadow: 0 4px 32px rgba(0,0,0,0.4);
-    padding: 16px 14px 14px;
-    margin-bottom: 8px;
+    padding: 14px 14px 6px;
+    margin-bottom: 0;
 }}
 .side-title {{
     font-family: 'Pretendard Variable', Pretendard, sans-serif;
@@ -353,7 +353,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     color: var(--white);
     border-bottom: 1px solid #2a2a2a;
     padding-bottom: 8px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     letter-spacing: 0.04em;
 }}
 .side-caption {{
@@ -365,13 +365,18 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     margin-bottom: 3px;
     text-transform: uppercase;
 }}
-/* 바로가기 버튼 간격 줄이기 */
+/* 바로가기 버튼 간격 */
 .shortcut-btn {{
     margin-bottom: 5px !important;
 }}
-/* 사이드 컬럼 Streamlit 기본 gap 제거 */
+/* 사이드 st.button들이 side-panel 안에 있는 것처럼 보이도록 배경 통일 */
+div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"],
 div[data-testid="stVerticalBlock"] > div {{
-    padding-bottom: 0 !important;
+    gap: 0 !important;
+}}
+/* 사이드 컬럼 전체 배경을 side-panel과 동일하게 감싸기 */
+section[data-testid="stSidebarContent"] {{
+    padding: 0 !important;
 }}
 
 /* ── 바로가기 버튼 ── */
@@ -866,100 +871,78 @@ def get_openmeteo_lastyear() -> dict:
         return {"ok": False, "err": str(e)[:80]}
 
 def render_weather_card():
-    """날씨를 Streamlit 위젯으로 직접 렌더링 (HTML 반환 X)"""
+    """날씨 카드 전체를 단일 HTML 블록으로 렌더링"""
     today = get_openmeteo_weather()
     ly    = get_openmeteo_lastyear()
 
-    # ── 날씨 카드 컨테이너 시작 ──
-    st.markdown(
-        "<div style='background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);"
-        "border-radius:10px;padding:14px 14px 12px;margin-top:0;"
-        "backdrop-filter:blur(8px);'>"
-        "<span style='font-size:0.56rem;letter-spacing:0.16em;color:#c8ff00;"
-        "font-weight:700;text-transform:uppercase;'>🌤 TODAY\'S WEATHER · PAJU</span>",
-        unsafe_allow_html=True
-    )
-
+    # ── 오늘 날씨 HTML ──
     if today.get("ok"):
-        # 아이콘 + 기온 + 설명 + 상세정보 한 블록으로 가운데 정렬
-        st.markdown(
+        badges = (
+            f"<div style='display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;'>"
+            f"<span style='font-size:0.66rem;background:rgba(255,80,80,0.15);color:#ff6868;"
+            f"padding:3px 8px;border-radius:4px;font-weight:700;'>최고 {today['hi']}°</span>"
+            f"<span style='font-size:0.66rem;background:rgba(80,150,255,0.15);color:#60a8ff;"
+            f"padding:3px 8px;border-radius:4px;font-weight:700;'>최저 {today['lo']}°</span>"
+            f"<span style='font-size:0.66rem;background:rgba(200,200,200,0.08);color:#888;"
+            f"padding:3px 8px;border-radius:4px;'>강수 {today['rain']}mm</span>"
+            f"</div>"
+        )
+        today_block = (
             f"<div style='display:flex;flex-direction:column;align-items:center;"
-            f"text-align:center;margin:10px 0 8px;'>"
+            f"text-align:center;margin:10px 0 6px;'>"
             f"<div style='display:flex;align-items:center;justify-content:center;"
             f"gap:8px;margin-bottom:4px;'>"
             f"<span style='font-size:2.8rem;line-height:1;'>{today['icon']}</span>"
             f"<span style='font-size:2.6rem;font-weight:800;color:#fff;"
             f"letter-spacing:-0.03em;line-height:1;'>{today['temp']}°</span>"
             f"</div>"
-            f"<div style='font-size:0.82rem;color:#bbb;margin-bottom:6px;'>{today['desc']}</div>"
+            f"<div style='font-size:0.82rem;color:#bbb;margin-bottom:4px;'>{today['desc']}</div>"
             f"<div style='font-size:0.68rem;color:#777;'>"
             f"체감 <b style='color:#ccc;'>{today['feel']}°</b>"
             f" &nbsp;·&nbsp; 습도 <b style='color:#ccc;'>{today['hum']}%</b>"
             f" &nbsp;·&nbsp; {today['wdir']}풍 <b style='color:#ccc;'>{today['wind']}m/s</b>"
             f"</div>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-        # 최고/최저/강수 뱃지
-        st.markdown(
-            f"<div style='display:flex;gap:6px;flex-wrap:wrap;justify-content:center;'>"
-            f"<span style='font-size:0.66rem;background:rgba(255,80,80,0.15);"
-            f"color:#ff6868;padding:3px 8px;border-radius:4px;font-weight:700;'>"
-            f"최고 {today['hi']}°</span>"
-            f"<span style='font-size:0.66rem;background:rgba(80,150,255,0.15);"
-            f"color:#60a8ff;padding:3px 8px;border-radius:4px;font-weight:700;'>"
-            f"최저 {today['lo']}°</span>"
-            f"<span style='font-size:0.66rem;background:rgba(100,200,255,0.08);"
-            f"color:#888;padding:3px 8px;border-radius:4px;'>"
-            f"강수 {today['rain']}mm</span>"
-            f"</div>",
-            unsafe_allow_html=True
+            f"{badges}</div>"
         )
     else:
-        err = today.get("err", "알 수 없는 오류")
-        st.markdown(
-            f"<div style='font-size:0.7rem;color:#666;padding:6px 0;'>"
-            f"날씨 조회 실패<br>"
-            f"<small style='color:#555;'>{err[:60]}</small></div>",
-            unsafe_allow_html=True
-        )
+        err = today.get("err","")
+        today_block = (f"<div style='font-size:0.7rem;color:#666;padding:8px 0;text-align:center;'>"
+                       f"날씨 조회 실패<br><small>{err[:50]}</small></div>")
 
-    # ── 구분선 ──
-    st.markdown(
-        "<hr style='border:none;border-top:1px solid #222;margin:10px 0;'>",
-        unsafe_allow_html=True
-    )
-
-    # ── 작년 오늘 ──
-    st.markdown(
-        "<span style='font-size:0.58rem;color:#c8ff00;font-weight:700;"
-        "letter-spacing:0.06em;text-transform:uppercase;'>작년 오늘</span>",
-        unsafe_allow_html=True
-    )
+    # ── 작년 날씨 HTML ──
     if ly.get("ok"):
         diff_str = ""
         if today.get("ok"):
-            diff = round(today["temp"] - ly["hi"], 1)
+            diff  = round(today["temp"] - ly["hi"], 1)
             arrow = "↑" if diff > 0 else "↓" if diff < 0 else "→"
             col   = "#ff6868" if diff > 0 else "#60a8ff" if diff < 0 else "#888"
-            diff_str = (f" &nbsp;<span style='color:{col};font-weight:700;font-size:0.7rem;'>"
+            diff_str = (f"&nbsp;<span style='color:{col};font-weight:700;'>"
                         f"{abs(diff)}° {arrow}</span>")
-        st.markdown(
-            f"<div style='font-size:0.7rem;color:#666;margin-top:5px;line-height:1.8;"
-            f"text-align:center;'>"
-            f"<b style='color:#aaa;'>{ly['date']}</b>{diff_str}<br>"
+        ly_block = (
+            f"<div style='text-align:center;font-size:0.72rem;color:#777;line-height:1.9;margin-top:6px;'>"
+            f"<b style='color:#aaa;'>{ly['date']}</b> {diff_str}<br>"
             f"최고 <b style='color:#ff6868;'>{ly['hi']}°</b>"
-            f" / 최저 <b style='color:#60a8ff;'>{ly['lo']}°</b>"
-            f" / 강수 {ly['rain']}mm"
-            f"</div>",
-            unsafe_allow_html=True
+            f" &nbsp;/&nbsp; 최저 <b style='color:#60a8ff;'>{ly['lo']}°</b>"
+            f" &nbsp;/&nbsp; 강수 {ly['rain']}mm"
+            f"</div>"
         )
     else:
-        st.markdown(
-            "<div style='font-size:0.68rem;color:#555;margin-top:4px;'>조회 불가</div>",
-            unsafe_allow_html=True
-        )
-    st.markdown("</div>", unsafe_allow_html=True)  # 날씨 카드 컨테이너 닫기
+        ly_block = "<div style='text-align:center;font-size:0.68rem;color:#555;margin-top:6px;'>조회 불가</div>"
+
+    # ── 전체 카드 단일 렌더링 ──
+    st.markdown(f"""
+        <div style='text-align:center;font-size:0.78rem;letter-spacing:0.12em;color:#c8ff00;
+             font-weight:700;text-transform:uppercase;margin-bottom:2px;'>
+            🌤 &nbsp;TODAY'S WEATHER · PAJU
+        </div>
+        {today_block}
+        <hr style='border:none;border-top:1px solid #2a2a2a;margin:12px 0 10px;'>
+        <div style='text-align:center;font-size:0.78rem;letter-spacing:0.1em;color:#c8ff00;
+             font-weight:700;text-transform:uppercase;margin-bottom:4px;'>
+            📅 &nbsp;작년 오늘
+        </div>
+        {ly_block}
+    """, unsafe_allow_html=True)
 
 def edit_event(year: int, month: int, day: int, dept: str, idx: int, new_title: str, new_detail: str):
     key = get_cal_key(year, month, day, dept)
@@ -1086,9 +1069,10 @@ main_col, side_col = st.columns([7.5, 2.5], gap="medium")
 # ────────────────── 캘린더 영역 ───────────────────────────────────────────────
 with main_col:
     # 월 이동
-    nav_l, nav_mid, nav_r = st.columns([1, 5, 1])
+    # 캘린더와 동일 폭 유지: 좌측 이전달 / 가운데 연월 / 우측 다음달
+    nav_l, nav_mid, nav_r = st.columns([1.2, 4, 1.2])
     with nav_l:
-        if st.button("◀  이전달", key="prev_month"):
+        if st.button("◀  이전달", key="prev_month", use_container_width=True):
             m, y = st.session_state.view_month, st.session_state.view_year
             m -= 1
             if m < 1:
@@ -1102,16 +1086,13 @@ with main_col:
             unsafe_allow_html=True,
         )
     with nav_r:
-        # 우측 끝 정렬: st.button은 기본 좌측이라 HTML로 우정렬 래핑
-        st.markdown("<div style='display:flex;justify-content:flex-end;'>", unsafe_allow_html=True)
-        if st.button("다음달  ▶", key="next_month"):
+        if st.button("다음달  ▶", key="next_month", use_container_width=True):
             m, y = st.session_state.view_month, st.session_state.view_year
             m += 1
             if m > 12:
                 m, y = 1, y + 1
             st.session_state.view_month, st.session_state.view_year = m, y
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # 캘린더 렌더링
     cal_html = render_calendar_html(
@@ -1320,10 +1301,11 @@ with side_col:
                 )
                 st.rerun()
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── 날씨 카드 ─────────────────────────────────────────────────────────────
+    # ── 날씨 카드 (side-panel 닫기 전에 구분선으로 연결) ──────────────────
+    st.markdown("<hr style='border:none;border-top:1px solid #2a2a2a;margin:10px 0 12px;'>",
+                unsafe_allow_html=True)
     render_weather_card()
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
