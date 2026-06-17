@@ -398,47 +398,64 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
 
 /* ── 날씨 카드 ── */
 .weather-card {{
-    background: rgba(17,17,17,0.9);
+    background: rgba(17,17,17,0.92);
     border: 1px solid #2a2a2a;
     border-radius: 10px;
-    padding: 16px;
+    padding: 16px 16px 14px;
     margin-top: 10px;
 }}
 .weather-title {{
-    font-size: 0.58rem;
+    font-size: 0.56rem;
     letter-spacing: 0.18em;
     color: var(--lime);
     font-weight: 700;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     display: block;
 }}
 .weather-row {{
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
+    gap: 12px;
+    margin-bottom: 2px;
 }}
-.weather-icon {{ font-size: 1.6rem; line-height: 1; }}
+.weather-icon {{
+    font-size: 2.6rem;
+    line-height: 1;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+}}
 .weather-temp {{
-    font-size: 1.4rem;
-    font-weight: 700;
+    font-size: 2.2rem;
+    font-weight: 800;
     color: var(--white);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.03em;
+    line-height: 1;
 }}
-.weather-desc {{ font-size: 0.7rem; color: var(--gray-500); margin-top: 1px; }}
-.weather-label {{ font-size: 0.62rem; color: var(--lime); font-weight: 600; margin-bottom: 3px; }}
+.weather-desc {{
+    font-size: 0.72rem;
+    color: #999;
+    margin-top: 3px;
+    font-weight: 400;
+}}
+.weather-label {{
+    font-size: 0.58rem;
+    color: var(--lime);
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}}
 .weather-divider {{
     border: none;
-    border-top: 1px solid #2a2a2a;
-    margin: 10px 0;
+    border-top: 1px solid #222;
+    margin: 12px 0 10px;
 }}
 .weather-last-year {{
     font-size: 0.68rem;
-    color: var(--gray-500);
-    line-height: 1.7;
+    color: #666;
+    line-height: 1.8;
 }}
-.weather-last-year b {{ color: #aaa; }}
+.weather-last-year b {{ color: #999; }}
 
 /* ── 업데이트 패널 ── */
 .update-panel {{
@@ -621,131 +638,149 @@ def delete_event(year: int, month: int, day: int, dept: str, idx: int):
             save_data(DATA_FILE, st.session_state.cal_data)
 
 
-# ── 날씨 조회 (네이버 날씨 - 파주시) ────────────────────────────────────────
-import re as _re
+# ── 날씨 조회 (Open-Meteo API - 파주시, 키 없이 무료) ───────────────────────
+# 파주시 문발동 좌표: 37.7377, 126.7798
+_PAJU_LAT, _PAJU_LON = 37.7377, 126.7798
 
-def _sky_icon(text: str) -> str:
-    t = text.lower()
-    if "눈" in t: return "🌨️"
-    if "비" in t and "눈" in t: return "🌦️"
-    if "비" in t or "소나기" in t: return "🌧️"
-    if "흐림" in t or "구름많" in t: return "🌥️"
-    if "구름" in t: return "⛅"
-    return "☀️"
+# WMO weather code → (한글설명, 이모지)
+_WMO_CODE = {
+    0:  ("맑음",       "☀️"),
+    1:  ("대체로 맑음", "🌤️"),
+    2:  ("구름많음",   "⛅"),
+    3:  ("흐림",       "🌥️"),
+    45: ("안개",       "🌫️"), 48: ("안개",  "🌫️"),
+    51: ("이슬비",     "🌦️"), 53: ("이슬비","🌦️"), 55: ("이슬비","🌦️"),
+    61: ("비",         "🌧️"), 63: ("비",    "🌧️"), 65: ("강한비","🌧️"),
+    71: ("눈",         "🌨️"), 73: ("눈",    "🌨️"), 75: ("강한눈","❄️"),
+    80: ("소나기",     "🌦️"), 81: ("소나기","🌦️"), 82: ("강한소나기","⛈️"),
+    85: ("눈소나기",   "🌨️"), 86: ("눈소나기","🌨️"),
+    95: ("뇌우",       "⛈️"), 96: ("뇌우",  "⛈️"), 99: ("뇌우",  "⛈️"),
+}
+
+def _wind_dir(deg: float) -> str:
+    dirs = ["북","북동","동","남동","남","남서","서","북서"]
+    return dirs[round(deg / 45) % 8]
 
 @st.cache_data(ttl=1800)
-def get_naver_weather() -> dict:
-    """네이버 날씨 파주시 스크래핑"""
+def get_openmeteo_weather() -> dict:
+    """Open-Meteo 현재 날씨 + 오늘 최고/최저"""
     try:
-        url = "https://search.naver.com/search.naver?query=파주시+날씨"
-        req = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                              "AppleWebKit/537.36 (KHTML, like Gecko) "
-                              "Chrome/124.0.0.0 Safari/537.36",
-                "Accept-Language": "ko-KR,ko;q=0.9",
-                "Accept": "text/html,application/xhtml+xml",
-            }
+        url = (
+            "https://api.open-meteo.com/v1/forecast"
+            f"?latitude={_PAJU_LAT}&longitude={_PAJU_LON}"
+            "&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
+            "weather_code,wind_speed_10m,wind_direction_10m"
+            "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
+            "&timezone=Asia%2FSeoul&forecast_days=1"
         )
-        with urllib.request.urlopen(req, timeout=6) as r:
-            html = r.read().decode("utf-8", errors="ignore")
-
-        # 현재 기온
-        temp_m = _re.search(r'class="[^"]*current[^"]*"[^>]*>\s*([\d.\-]+)\s*</', html)
-        if not temp_m:
-            temp_m = _re.search(r'([\d.\-]+)</em>\s*°', html)
-        temp = temp_m.group(1) if temp_m else "-"
-
-        # 날씨 상태
-        status_m = _re.search(r'class="[^"]*summary[^"]*"[^>]*>\s*([^<]{2,12})\s*</', html)
-        status = status_m.group(1).strip() if status_m else ""
-        if not status:
-            status_m2 = _re.search(r'<p class="[^"]*cast_txt[^"]*"[^>]*>([^<]+)</p>', html)
-            status = status_m2.group(1).strip() if status_m2 else "날씨 정보"
-
-        # 최고/최저
-        hi_m  = _re.search(r'최고\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
-        lo_m  = _re.search(r'최저\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
-        hi = hi_m.group(1) if hi_m else "-"
-        lo = lo_m.group(1) if lo_m else "-"
-
-        # 습도 / 체감
-        hum_m  = _re.search(r'습도</span>[^<]*<span[^>]*>([^<]+)</span>', html)
-        feel_m = _re.search(r'체감</span>[^<]*<span[^>]*>([^<]+)</span>', html)
-        hum  = hum_m.group(1).strip()  if hum_m  else "-"
-        feel = feel_m.group(1).strip() if feel_m else "-"
-
-        icon = _sky_icon(status)
-        return {"ok": True, "temp": temp, "status": status, "icon": icon,
-                "hi": hi, "lo": lo, "hum": hum, "feel": feel}
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read().decode())
+        c = data["current"]
+        d = data["daily"]
+        code = int(c.get("weather_code", 0))
+        desc, icon = _WMO_CODE.get(code, ("날씨정보", "🌤️"))
+        return {
+            "ok":    True,
+            "temp":  round(c["temperature_2m"], 1),
+            "feel":  round(c["apparent_temperature"], 1),
+            "hum":   int(c["relative_humidity_2m"]),
+            "wind":  round(c["wind_speed_10m"], 1),
+            "wdir":  _wind_dir(c.get("wind_direction_10m", 0)),
+            "hi":    round(d["temperature_2m_max"][0], 1),
+            "lo":    round(d["temperature_2m_min"][0], 1),
+            "rain":  round(d["precipitation_sum"][0], 1),
+            "desc":  desc,
+            "icon":  icon,
+        }
     except Exception as e:
-        return {"ok": False, "err": str(e)}
+        return {"ok": False, "err": str(e)[:100]}
 
 @st.cache_data(ttl=7200)
-def get_naver_weather_lastyear() -> dict:
-    """네이버 날씨 작년 동일 날짜 (과거날씨)"""
+def get_openmeteo_lastyear() -> dict:
+    """작년 동일 날짜 최고/최저 (Open-Meteo Historical API)"""
     try:
+        from datetime import date as _date
         now = datetime.now()
         ly  = now.replace(year=now.year - 1)
-        url = (f"https://search.naver.com/search.naver?query=파주시+날씨"
-               f"&date={ly.strftime('%Y%m%d')}")
-        req = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                              "AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
-                "Accept-Language": "ko-KR,ko;q=0.9",
-            }
+        ds  = ly.strftime("%Y-%m-%d")
+        url = (
+            "https://archive-api.open-meteo.com/v1/archive"
+            f"?latitude={_PAJU_LAT}&longitude={_PAJU_LON}"
+            f"&start_date={ds}&end_date={ds}"
+            "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
+            "&timezone=Asia%2FSeoul"
         )
-        with urllib.request.urlopen(req, timeout=6) as r:
-            html = r.read().decode("utf-8", errors="ignore")
-
-        hi_m  = _re.search(r'최고\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
-        lo_m  = _re.search(r'최저\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
-        hi = hi_m.group(1) if hi_m else "-"
-        lo = lo_m.group(1) if lo_m else "-"
-        return {"ok": True, "hi": hi, "lo": lo, "date": ly.strftime("%Y.%m.%d")}
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            data = json.loads(r.read().decode())
+        d = data["daily"]
+        return {
+            "ok":   True,
+            "hi":   round(d["temperature_2m_max"][0], 1),
+            "lo":   round(d["temperature_2m_min"][0], 1),
+            "rain": round(d["precipitation_sum"][0] or 0, 1),
+            "date": ly.strftime("%Y.%m.%d"),
+        }
     except Exception as e:
-        return {"ok": False, "err": str(e)}
+        return {"ok": False, "err": str(e)[:80]}
 
 def render_weather_card() -> str:
     now   = datetime.now()
-    today = get_naver_weather()
-    ly    = get_naver_weather_lastyear()
+    today = get_openmeteo_weather()
+    ly    = get_openmeteo_lastyear()
 
-    if today.get("ok") and today["temp"] != "-":
+    if today.get("ok"):
         today_html = f"""
         <div class='weather-row'>
             <span class='weather-icon'>{today["icon"]}</span>
             <div>
-                <div class='weather-temp'>{today["temp"]}°C</div>
-                <div class='weather-desc'>{today["status"]} · 파주시</div>
+                <div class='weather-temp'>{today["temp"]}°</div>
+                <div class='weather-desc'>{today["desc"]}</div>
             </div>
         </div>
-        <div style='display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;'>
-            <span style='font-size:0.65rem;color:#888;'>최고 <b style='color:#ff6b6b;'>{today["hi"]}°</b></span>
-            <span style='font-size:0.65rem;color:#888;'>최저 <b style='color:#6bb5ff;'>{today["lo"]}°</b></span>
-            <span style='font-size:0.65rem;color:#888;'>습도 <b style='color:#ccc;'>{today["hum"]}</b></span>
-            <span style='font-size:0.65rem;color:#888;'>체감 <b style='color:#ccc;'>{today["feel"]}°</b></span>
+        <div style='font-size:0.66rem;color:#777;margin:5px 0 4px;'>
+            체감 {today["feel"]}° &nbsp;·&nbsp; 습도 {today["hum"]}%
+            &nbsp;·&nbsp; {today["wdir"]}풍 {today["wind"]}m/s
+        </div>
+        <div style='display:flex;gap:8px;margin-top:4px;'>
+            <span style='font-size:0.65rem;background:rgba(255,80,80,0.12);
+                color:#ff6060;padding:2px 7px;border-radius:3px;font-weight:700;'>
+                최고 {today["hi"]}°
+            </span>
+            <span style='font-size:0.65rem;background:rgba(80,160,255,0.12);
+                color:#60b0ff;padding:2px 7px;border-radius:3px;font-weight:700;'>
+                최저 {today["lo"]}°
+            </span>
+            <span style='font-size:0.65rem;background:rgba(100,200,255,0.08);
+                color:#888;padding:2px 7px;border-radius:3px;'>
+                강수 {today["rain"]}mm
+            </span>
         </div>"""
     else:
-        err = today.get("err","")
-        today_html = f"<div style='font-size:0.68rem;color:#555;padding:6px 0;'>날씨 조회 실패<br><span style='font-size:0.6rem;'>{err[:60]}</span></div>"
+        err = today.get("err", "")
+        today_html = f"<div style='font-size:0.66rem;color:#555;padding:4px 0;'>날씨 조회 실패<br><small>{err}</small></div>"
 
-    if ly.get("ok") and ly["hi"] != "-":
+    if ly.get("ok"):
+        diff = round(today["temp"] - ly["hi"], 1) if today.get("ok") else None
+        diff_str = ""
+        if diff is not None:
+            arrow = "↑" if diff > 0 else "↓" if diff < 0 else "→"
+            color = "#ff6060" if diff > 0 else "#60b0ff" if diff < 0 else "#888"
+            diff_str = f" <span style='color:{color};font-weight:700;'>{abs(diff)}° {arrow}</span>"
         ly_html = f"""
         <div class='weather-last-year'>
-            <b>작년 오늘 ({ly["date"]})</b><br>
-            최고 {ly["hi"]}°C &nbsp;/&nbsp; 최저 {ly["lo"]}°C
+            <b>작년 오늘 ({ly["date"]})</b>{diff_str}<br>
+            최고 <b style='color:#ff6060;'>{ly["hi"]}°</b>
+            &nbsp;/&nbsp; 최저 <b style='color:#60b0ff;'>{ly["lo"]}°</b>
+            &nbsp;/&nbsp; 강수 {ly["rain"]}mm
         </div>"""
     else:
-        ly_html = "<div class='weather-last-year' style='color:#444;'>작년 데이터 조회 불가</div>"
+        ly_html = "<div class='weather-last-year' style='color:#555;'>작년 데이터 조회 불가</div>"
 
     return f"""
     <div class='weather-card'>
         <span class='weather-title'>🌤 TODAY'S WEATHER · PAJU</span>
-        <div class='weather-label'>현재 날씨 <span style='color:#555;font-weight:400;font-size:0.58rem;'>(네이버 날씨)</span></div>
         {today_html}
         <hr class='weather-divider'>
         <div class='weather-label'>작년 오늘</div>
