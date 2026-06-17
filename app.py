@@ -714,16 +714,17 @@ with side_col:
                 unsafe_allow_html=True,
             )
         elif stype == "file":
-            file_path = Path(sc.get("file_path", ""))
-            if file_path.exists():
-                with open(file_path, "rb") as fobj:
-                    st.download_button(
-                        label=label,
-                        data=fobj.read(),
-                        file_name=file_path.name,
-                        use_container_width=True,
-                        key=f"dl_{key}",
-                    )
+            file_b64 = sc.get("file_b64", "")
+            file_name = sc.get("file_name", "download")
+            if file_b64:
+                file_bytes = base64.b64decode(file_b64)
+                st.download_button(
+                    label=label,
+                    data=file_bytes,
+                    file_name=file_name,
+                    use_container_width=True,
+                    key=f"dl_{key}",
+                )
             else:
                 st.markdown(f"<span class='{btn_cls}' style='opacity:.5'>{label} (파일없음)</span>",
                             unsafe_allow_html=True)
@@ -740,24 +741,35 @@ with side_col:
     if st.session_state.authenticated:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         with st.expander("⚙️ 바로가기 관리"):
-            with st.form("add_shortcut", clear_on_submit=True):
-                sc_label = st.text_input("버튼 이름", max_chars=15)
-                sc_key_in = st.text_input("키 (영문/숫자, 중복불가)", max_chars=20)
-                sc_type = st.selectbox("타입", ["board", "url", "file"])
-                sc_url = st.text_input("URL (타입=url일 때)", placeholder="https://...")
-                sc_red = st.checkbox("빨간 버튼")
-                if st.form_submit_button("추가"):
-                    if sc_label and sc_key_in:
-                        sc_key_in_clean = sc_key_in.strip().replace(" ", "_")
-                        st.session_state.shortcuts[sc_key_in_clean] = {
-                            "label": sc_label,
-                            "type": sc_type,
-                            "url": sc_url,
-                            "red": sc_red,
-                            "posts": [],
-                        }
-                        save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
-                        st.rerun()
+            sc_label = st.text_input("버튼 이름", max_chars=15, key="sc_label")
+            sc_key_in = st.text_input("키 (영문/숫자, 중복불가)", max_chars=20, key="sc_key")
+            sc_type = st.selectbox("타입", ["board", "url", "file"], key="sc_type")
+            sc_url = st.text_input("URL (타입=url일 때)", placeholder="https://...", key="sc_url")
+            sc_file = None
+            if sc_type == "file":
+                sc_file = st.file_uploader("파일 업로드 (타입=file일 때)", key="sc_file")
+            sc_red = st.checkbox("빨간 버튼", key="sc_red")
+            if st.button("추가", key="sc_add_btn"):
+                if sc_label and sc_key_in:
+                    sc_key_clean = sc_key_in.strip().replace(" ", "_")
+                    entry = {
+                        "label": sc_label,
+                        "type": sc_type,
+                        "url": sc_url,
+                        "red": sc_red,
+                        "posts": [],
+                        "file_b64": "",
+                        "file_name": "",
+                    }
+                    if sc_type == "file" and sc_file is not None:
+                        entry["file_b64"] = base64.b64encode(sc_file.read()).decode()
+                        entry["file_name"] = sc_file.name
+                    st.session_state.shortcuts[sc_key_clean] = entry
+                    save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                    st.success(f"'{sc_label}' 버튼이 추가됐습니다.")
+                    st.rerun()
+                else:
+                    st.warning("버튼 이름과 키를 입력해주세요.")
             # 삭제
             if shortcuts:
                 del_sc_key = st.selectbox("삭제할 버튼", list(shortcuts.keys()))
