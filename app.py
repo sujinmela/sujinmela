@@ -522,9 +522,11 @@ div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
 .stDownloadButton > button p,
 .stButton > button span,
 .stDownloadButton > button span {{
+    font-size: 0.82rem !important;
     font-weight: 600 !important;
     font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
     color: #ffffff !important;
+    letter-spacing: 0.04em !important;
 }}
 .stButton > button:hover,
 .stDownloadButton > button:hover {{
@@ -675,11 +677,15 @@ div[data-testid="stForm"] {{
 .stWarning {{ background: rgba(255,180,0,0.1) !important; color: var(--white) !important; }}
 p, span, div, label {{ color: var(--white); }}
 
-/* 버튼 텍스트 흰색 강제 (모든 하위 요소) */
+/* 버튼 텍스트 흰색 + 사이즈 강제 (모든 하위 요소) */
 .stButton button *,
 .stDownloadButton button *,
 .stFormSubmitButton button * {{
     color: #ffffff !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
+    letter-spacing: 0.04em !important;
 }}
 .stButton button:hover *,
 .stDownloadButton button:hover *,
