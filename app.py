@@ -20,19 +20,19 @@ ADMIN_PASSWORD = "1234"   # 운영자 비밀번호 (4자리)
 DATA_FILE = Path("calendar_data.json")
 SHORTCUTS_FILE = Path("shortcuts_data.json")
 DEPT_COLORS = {
-    "영업기획팀": "#c8ff00",   # 라임
-    "지원팀":   "#60c8ff",   # 스카이블루
-    "시설팀":   "#aaaaaa",   # 라이트그레이
+    "영업기획팀": "#c8102e",   # 빨강
+    "지원팀":   "#1a3a7c",   # 남색
+    "시설팀":   "#1a7a3c",   # 초록
 }
 DEPT_BG = {
-    "영업기획팀": "rgba(200,255,0,0.12)",
-    "지원팀":   "rgba(96,200,255,0.12)",
-    "시설팀":   "rgba(170,170,170,0.10)",
+    "영업기획팀": "rgba(200,16,46,0.10)",
+    "지원팀":   "rgba(26,58,124,0.10)",
+    "시설팀":   "rgba(26,122,60,0.10)",
 }
 DEPT_TEXT = {
-    "영업기획팀": "#111111",
-    "지원팀":   "#111111",
-    "시설팀":   "#111111",
+    "영업기획팀": "#c8102e",
+    "지원팀":   "#1a3a7c",
+    "시설팀":   "#1a7a3c",
 }
 DEPTS = ["영업기획팀", "지원팀", "시설팀"]
 
@@ -112,23 +112,7 @@ bg_css = (
 # ── 글로벌 CSS ────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-@import url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteRegular.woff');
-@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
-@font-face {{
-    font-family: 'MyLotte';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteLight.woff') format('woff');
-    font-weight: 300;
-}}
-@font-face {{
-    font-family: 'MyLotte';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteRegular.woff') format('woff');
-    font-weight: 400;
-}}
-@font-face {{
-    font-family: 'MyLotte';
-    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.0/MyLotteBold.woff') format('woff');
-    font-weight: 700;
-}}
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
 
 /* ── 키 컬러 변수 ── */
 :root {{
@@ -163,7 +147,7 @@ section[data-testid="stMain"] > div {{
 
 /* ── 폰트 전역 ── */
 html, body, [class*="css"], p, span, div, label, button, input, textarea, select {{
-    font-family: 'MyLotte', 'Pretendard', -apple-system, sans-serif !important;
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif !important;
     color: var(--white);
 }}
 
@@ -181,26 +165,25 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     box-shadow: 0 2px 32px rgba(0,0,0,0.5);
 }}
 .lotte-logo {{
-    font-family: 'MyLotte', sans-serif;
-    font-size: 1.22rem;
-    font-weight: 700;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif;
+    font-size: 1.15rem;
+    font-weight: 800;
     color: var(--white);
-    letter-spacing: 0.22em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
 }}
 .lotte-logo .accent {{
     color: var(--lime);
     font-weight: 300;
-    font-size: 1.05rem;
-    letter-spacing: 0.28em;
+    font-size: 1.0rem;
+    letter-spacing: 0.22em;
 }}
 .lotte-subtitle {{
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     color: var(--gray-500);
-    letter-spacing: 0.14em;
+    letter-spacing: 0.1em;
     margin-top: 5px;
-    font-weight: 300;
-    text-transform: uppercase;
+    font-weight: 400;
 }}
 
 /* ── 캘린더 컨테이너 ── */
@@ -214,14 +197,23 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     margin: 0;
 }}
 .cal-month-title {{
-    font-family: 'MyLotte', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
     color: #111111;
-    letter-spacing: 0.04em;
-    margin-bottom: 18px;
-    border-left: 4px solid var(--lime);
-    padding-left: 14px;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    border-left: 5px solid var(--lime);
+    padding-left: 16px;
+    line-height: 1.15;
+}}
+.cal-month-title .year-part {{
+    font-size: 1.0rem;
+    font-weight: 500;
+    color: #666;
+    letter-spacing: 0.02em;
+    display: block;
+    margin-bottom: 2px;
 }}
 
 /* ── 캘린더 테이블 ── */
@@ -249,7 +241,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     vertical-align: top;
     border: 1px solid #ddddd8;
     padding: 7px 6px 5px;
-    height: 115px;
+    height: 120px;
     background: rgba(255,255,255,0.82);
     transition: background 0.2s;
     overflow: visible;
@@ -284,23 +276,24 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
 .day-num.sat {{ color: #2255aa; }}
 
 /* ── 부서별 배지 ── */
-.dept-row {{ margin-bottom: 2px; min-height: 20px; }}
+.dept-row {{ margin-bottom: 3px; min-height: 22px; }}
 .dept-badge {{
     display: inline-block;
-    font-size: 0.62rem;
-    font-weight: 600;
-    padding: 2px 5px;
-    border-radius: 2px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 6px 2px 4px;
+    border-radius: 3px;
     max-width: 100%;
     overflow: visible;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: default;
     position: relative;
-    letter-spacing: 0.01em;
+    letter-spacing: -0.01em;
     transition: opacity 0.15s;
+    line-height: 1.4;
 }}
-.dept-badge:hover {{ opacity: 0.8; }}
+.dept-badge:hover {{ opacity: 0.75; }}
 
 /* ── 툴팁 ── */
 .has-tooltip {{ position: relative; }}
@@ -346,7 +339,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     padding: 20px 16px;
 }}
 .side-title {{
-    font-family: 'MyLotte', sans-serif;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--white);
@@ -474,7 +467,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     margin-top: 16px;
 }}
 .board-title {{
-    font-family: 'MyLotte', sans-serif;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif;
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--white);
@@ -494,7 +487,7 @@ div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
 
 .stButton > button,
 .stDownloadButton > button {{
-    font-family: 'MyLotte', sans-serif !important;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
     font-size: 0.76rem !important;
     font-weight: 600 !important;
     border-radius: 4px !important;
@@ -512,7 +505,7 @@ div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
 }}
 /* form submit 버튼도 동일 */
 .stFormSubmitButton > button {{
-    font-family: 'MyLotte', sans-serif !important;
+    font-family: 'Pretendard Variable', Pretendard, sans-serif !important;
     background: #111111 !important;
     color: #ffffff !important;
     border: 1px solid #444 !important;
@@ -806,7 +799,7 @@ def render_calendar_html(year: int, month: int) -> str:
                         title_safe = ev['title'].replace('"', '&quot;').replace("'", "&#39;")
                         badges += f"""
                         <span class='dept-badge has-tooltip'
-                            style='background:{bg}; color:{color}; border-left:2px solid {color};'>
+                            style='background:{bg}; color:{color}; border-left:3px solid {color}; font-weight:700;'>
                             {title_safe}
                             <span class='tooltip-text'><span class='tooltip-dept'>[{dept}]</span>{detail_safe if detail_safe else title_safe}</span>
                         </span> """
@@ -823,13 +816,15 @@ def render_calendar_html(year: int, month: int) -> str:
 
     return f"""
     <div class='cal-wrap'>
-        <div class='cal-month-title'>{year}년 {month}월</div>
+        <div class='cal-month-title'>
+            <span class='year-part'>{year}</span>{month}월
+        </div>
         <table class='cal-table'>
             <thead><tr>{header_html}</tr></thead>
             <tbody>{rows_html}</tbody>
         </table>
         <div class='legend-wrap'>
-            {''.join(f"<div class='legend-item'><div class='legend-dot' style='background:{DEPT_COLORS[d]}'></div>{d}</div>" for d in DEPTS)}
+            {''.join(f"<div class='legend-item'><div class='legend-dot' style='background:{DEPT_COLORS[d]}'></div><span style='color:{DEPT_COLORS[d]};font-weight:700;'>{d}</span></div>" for d in DEPTS)}
         </div>
     </div>
     """
