@@ -725,67 +725,100 @@ def get_openmeteo_lastyear() -> dict:
     except Exception as e:
         return {"ok": False, "err": str(e)[:80]}
 
-def render_weather_card() -> str:
-    now   = datetime.now()
+def render_weather_card():
+    """날씨를 Streamlit 위젯으로 직접 렌더링 (HTML 반환 X)"""
     today = get_openmeteo_weather()
     ly    = get_openmeteo_lastyear()
 
+    # ── 헤더 ──
+    st.markdown(
+        "<span style='font-size:0.56rem;letter-spacing:0.16em;color:#c8ff00;"
+        "font-weight:700;text-transform:uppercase;'>🌤 TODAY\'S WEATHER · PAJU</span>",
+        unsafe_allow_html=True
+    )
+
     if today.get("ok"):
-        today_html = f"""
-        <div class='weather-row'>
-            <span class='weather-icon'>{today["icon"]}</span>
-            <div>
-                <div class='weather-temp'>{today["temp"]}°</div>
-                <div class='weather-desc'>{today["desc"]}</div>
-            </div>
-        </div>
-        <div style='font-size:0.66rem;color:#777;margin:5px 0 4px;'>
-            체감 {today["feel"]}° &nbsp;·&nbsp; 습도 {today["hum"]}%
-            &nbsp;·&nbsp; {today["wdir"]}풍 {today["wind"]}m/s
-        </div>
-        <div style='display:flex;gap:8px;margin-top:4px;'>
-            <span style='font-size:0.65rem;background:rgba(255,80,80,0.12);
-                color:#ff6060;padding:2px 7px;border-radius:3px;font-weight:700;'>
-                최고 {today["hi"]}°
-            </span>
-            <span style='font-size:0.65rem;background:rgba(80,160,255,0.12);
-                color:#60b0ff;padding:2px 7px;border-radius:3px;font-weight:700;'>
-                최저 {today["lo"]}°
-            </span>
-            <span style='font-size:0.65rem;background:rgba(100,200,255,0.08);
-                color:#888;padding:2px 7px;border-radius:3px;'>
-                강수 {today["rain"]}mm
-            </span>
-        </div>"""
+        # 아이콘 + 기온 큰 텍스트
+        st.markdown(
+            f"<div style='display:flex;align-items:center;gap:10px;margin:8px 0 2px;'>"
+            f"<span style='font-size:2.8rem;line-height:1;'>{today['icon']}</span>"
+            f"<span style='font-size:2.4rem;font-weight:800;color:#fff;"
+            f"letter-spacing:-0.03em;line-height:1;'>{today['temp']}°</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        # 날씨 설명
+        st.markdown(
+            f"<div style='font-size:0.8rem;color:#aaa;margin-bottom:5px;'>{today['desc']}</div>",
+            unsafe_allow_html=True
+        )
+        # 체감·습도·풍속
+        st.markdown(
+            f"<div style='font-size:0.68rem;color:#777;margin-bottom:8px;'>"
+            f"체감 <b style='color:#ccc;'>{today['feel']}°</b> &nbsp;·&nbsp; "
+            f"습도 <b style='color:#ccc;'>{today['hum']}%</b> &nbsp;·&nbsp; "
+            f"{today['wdir']}풍 <b style='color:#ccc;'>{today['wind']}m/s</b>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+        # 최고/최저/강수 뱃지
+        st.markdown(
+            f"<div style='display:flex;gap:6px;flex-wrap:wrap;'>"
+            f"<span style='font-size:0.66rem;background:rgba(255,80,80,0.15);"
+            f"color:#ff6868;padding:3px 8px;border-radius:4px;font-weight:700;'>"
+            f"최고 {today['hi']}°</span>"
+            f"<span style='font-size:0.66rem;background:rgba(80,150,255,0.15);"
+            f"color:#60a8ff;padding:3px 8px;border-radius:4px;font-weight:700;'>"
+            f"최저 {today['lo']}°</span>"
+            f"<span style='font-size:0.66rem;background:rgba(100,200,255,0.08);"
+            f"color:#888;padding:3px 8px;border-radius:4px;'>"
+            f"강수 {today['rain']}mm</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
     else:
-        err = today.get("err", "")
-        today_html = f"<div style='font-size:0.66rem;color:#555;padding:4px 0;'>날씨 조회 실패<br><small>{err}</small></div>"
+        err = today.get("err", "알 수 없는 오류")
+        st.markdown(
+            f"<div style='font-size:0.7rem;color:#666;padding:6px 0;'>"
+            f"날씨 조회 실패<br>"
+            f"<small style='color:#555;'>{err[:60]}</small></div>",
+            unsafe_allow_html=True
+        )
 
+    # ── 구분선 ──
+    st.markdown(
+        "<hr style='border:none;border-top:1px solid #222;margin:10px 0;'>",
+        unsafe_allow_html=True
+    )
+
+    # ── 작년 오늘 ──
+    st.markdown(
+        "<span style='font-size:0.58rem;color:#c8ff00;font-weight:700;"
+        "letter-spacing:0.06em;text-transform:uppercase;'>작년 오늘</span>",
+        unsafe_allow_html=True
+    )
     if ly.get("ok"):
-        diff = round(today["temp"] - ly["hi"], 1) if today.get("ok") else None
         diff_str = ""
-        if diff is not None:
+        if today.get("ok"):
+            diff = round(today["temp"] - ly["hi"], 1)
             arrow = "↑" if diff > 0 else "↓" if diff < 0 else "→"
-            color = "#ff6060" if diff > 0 else "#60b0ff" if diff < 0 else "#888"
-            diff_str = f" <span style='color:{color};font-weight:700;'>{abs(diff)}° {arrow}</span>"
-        ly_html = f"""
-        <div class='weather-last-year'>
-            <b>작년 오늘 ({ly["date"]})</b>{diff_str}<br>
-            최고 <b style='color:#ff6060;'>{ly["hi"]}°</b>
-            &nbsp;/&nbsp; 최저 <b style='color:#60b0ff;'>{ly["lo"]}°</b>
-            &nbsp;/&nbsp; 강수 {ly["rain"]}mm
-        </div>"""
+            col   = "#ff6868" if diff > 0 else "#60a8ff" if diff < 0 else "#888"
+            diff_str = (f" &nbsp;<span style='color:{col};font-weight:700;font-size:0.7rem;'>"
+                        f"{abs(diff)}° {arrow}</span>")
+        st.markdown(
+            f"<div style='font-size:0.7rem;color:#666;margin-top:5px;line-height:1.8;'>"
+            f"<b style='color:#aaa;'>{ly['date']}</b>{diff_str}<br>"
+            f"최고 <b style='color:#ff6868;'>{ly['hi']}°</b>"
+            f" / 최저 <b style='color:#60a8ff;'>{ly['lo']}°</b>"
+            f" / 강수 {ly['rain']}mm"
+            f"</div>",
+            unsafe_allow_html=True
+        )
     else:
-        ly_html = "<div class='weather-last-year' style='color:#555;'>작년 데이터 조회 불가</div>"
-
-    return f"""
-    <div class='weather-card'>
-        <span class='weather-title'>🌤 TODAY'S WEATHER · PAJU</span>
-        {today_html}
-        <hr class='weather-divider'>
-        <div class='weather-label'>작년 오늘</div>
-        {ly_html}
-    </div>"""
+        st.markdown(
+            "<div style='font-size:0.68rem;color:#555;margin-top:4px;'>조회 불가</div>",
+            unsafe_allow_html=True
+        )
 
 def edit_event(year: int, month: int, day: int, dept: str, idx: int, new_title: str, new_detail: str):
     key = get_cal_key(year, month, day, dept)
@@ -1143,7 +1176,13 @@ with side_col:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 날씨 카드 ─────────────────────────────────────────────────────────────
-    st.markdown(render_weather_card(), unsafe_allow_html=True)
+    st.markdown(
+        "<div style='background:rgba(17,17,17,0.92);border:1px solid #2a2a2a;"
+        "border-radius:10px;padding:16px 16px 14px;margin-top:10px;'>",
+        unsafe_allow_html=True
+    )
+    render_weather_card()
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
