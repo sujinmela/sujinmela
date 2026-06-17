@@ -47,6 +47,24 @@ def save_data(path: Path, data: dict):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
+def save_sc_order(order: list):
+    with open(Path("sc_order.json"), "w", encoding="utf-8") as f:
+        json.dump(order, f, ensure_ascii=False)
+
+def get_ordered_shortcuts() -> list:
+    """shortcuts를 sc_order 순서에 맞게 정렬한 [(key, sc)] 리스트 반환"""
+    shortcuts = st.session_state.shortcuts
+    order = st.session_state.sc_order
+    # order에 없는 신규 키는 뒤에 추가
+    all_keys = list(shortcuts.keys())
+    ordered = [k for k in order if k in shortcuts]
+    new_keys = [k for k in all_keys if k not in ordered]
+    final_order = ordered + new_keys
+    # sc_order 동기화
+    if final_order != order:
+        st.session_state.sc_order = final_order
+    return [(k, shortcuts[k]) for k in final_order]
+
 if "cal_data" not in st.session_state:
     st.session_state.cal_data = load_data(DATA_FILE)
 if "shortcuts" not in st.session_state:
@@ -67,6 +85,14 @@ if "view_year" not in st.session_state:
     st.session_state.view_year = datetime.today().year
 if "board_key" not in st.session_state:
     st.session_state.board_key = None   # 현재 열린 게시판 shortcut key
+if "sc_order" not in st.session_state:
+    # shortcuts의 key 순서를 저장 (없으면 현재 순서 사용)
+    sc_order_file = Path("sc_order.json")
+    if sc_order_file.exists():
+        with open(sc_order_file, "r", encoding="utf-8") as _f:
+            st.session_state.sc_order = json.load(_f)
+    else:
+        st.session_state.sc_order = []
 
 # ── 배경 이미지 인코딩 ─────────────────────────────────────────────────────
 def get_bg_base64() -> str:
@@ -179,11 +205,11 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
 
 /* ── 캘린더 컨테이너 ── */
 .cal-wrap {{
-    background: rgba(17,17,17,0.82);
-    backdrop-filter: blur(12px);
+    background: rgba(245,245,240,0.92);
+    backdrop-filter: blur(14px);
     border-radius: 10px;
-    border: 1px solid rgba(200,255,0,0.15);
-    box-shadow: 0 4px 40px rgba(0,0,0,0.4);
+    border: 1px solid rgba(200,255,0,0.3);
+    box-shadow: 0 4px 40px rgba(0,0,0,0.35);
     padding: 28px 24px 24px;
     margin: 0;
 }}
@@ -191,7 +217,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     font-family: 'MyLotte', sans-serif;
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--white);
+    color: #111111;
     letter-spacing: 0.04em;
     margin-bottom: 18px;
     border-left: 4px solid var(--lime);
@@ -206,41 +232,41 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     overflow: visible;
 }}
 .cal-table th {{
-    background: var(--black);
-    color: var(--gray-500);
+    background: #111111;
+    color: #cccccc;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
     padding: 10px 0;
     text-align: center;
-    border: 1px solid #222;
+    border: 1px solid #333;
     text-transform: uppercase;
 }}
-.cal-table th.sun {{ color: #ff6b6b; }}
-.cal-table th.sat {{ color: #6bb5ff; }}
+.cal-table th.sun {{ color: #ff8080; }}
+.cal-table th.sat {{ color: #80c8ff; }}
 
 .cal-cell {{
     vertical-align: top;
-    border: 1px solid #222;
+    border: 1px solid #ddddd8;
     padding: 7px 6px 5px;
     height: 115px;
-    background: rgba(255,255,255,0.03);
+    background: rgba(255,255,255,0.82);
     transition: background 0.2s;
     overflow: visible;
     position: relative;
 }}
-.cal-cell:hover {{ background: rgba(200,255,0,0.04); border-color: rgba(200,255,0,0.2); }}
+.cal-cell:hover {{ background: rgba(255,255,255,0.98); border-color: rgba(200,255,0,0.5); }}
 .cal-cell.today {{
-    background: rgba(200,255,0,0.06);
-    border-color: var(--lime);
+    background: rgba(200,255,0,0.12);
+    border-color: #a0cc00;
     border-width: 1.5px;
 }}
-.cal-cell.other-month {{ background: rgba(0,0,0,0.2); opacity: 0.4; }}
+.cal-cell.other-month {{ background: rgba(240,240,240,0.4); opacity: 0.5; }}
 
 .day-num {{
     font-size: 0.8rem;
     font-weight: 700;
-    color: var(--gray-500);
+    color: #444444;
     margin-bottom: 4px;
     display: block;
     letter-spacing: 0.02em;
@@ -254,8 +280,8 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     font-size: 0.72rem;
     margin-bottom: 4px;
 }}
-.day-num.sun {{ color: #ff6b6b; }}
-.day-num.sat {{ color: #6bb5ff; }}
+.day-num.sun {{ color: #cc2222; }}
+.day-num.sat {{ color: #2255aa; }}
 
 /* ── 부서별 배지 ── */
 .dept-row {{ margin-bottom: 2px; min-height: 20px; }}
@@ -307,7 +333,7 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
 
 /* ── 범례 ── */
 .legend-wrap {{ display: flex; gap: 18px; margin-top: 16px; flex-wrap: wrap; }}
-.legend-item {{ display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--gray-500); }}
+.legend-item {{ display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #555555; }}
 .legend-dot {{ width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }}
 
 /* ── 사이드 패널 ── */
@@ -466,20 +492,37 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
 div[data-testid="stHorizontalBlock"] {{ gap: 12px; }}
 .stApp, [data-testid="stAppViewContainer"] {{ background: transparent; }}
 
-.stButton > button {{
+.stButton > button,
+.stDownloadButton > button {{
     font-family: 'MyLotte', sans-serif !important;
     font-size: 0.76rem !important;
     font-weight: 600 !important;
     border-radius: 4px !important;
-    background: #1e1e1e !important;
-    color: var(--white) !important;
+    background: #111111 !important;
+    color: #ffffff !important;
     border: 1px solid #333 !important;
     transition: all 0.18s !important;
     letter-spacing: 0.04em !important;
 }}
-.stButton > button:hover {{
+.stButton > button:hover,
+.stDownloadButton > button:hover {{
     background: var(--lime) !important;
-    color: var(--black) !important;
+    color: #111111 !important;
+    border-color: var(--lime) !important;
+}}
+/* form submit 버튼도 동일 */
+.stFormSubmitButton > button {{
+    font-family: 'MyLotte', sans-serif !important;
+    background: #111111 !important;
+    color: #ffffff !important;
+    border: 1px solid #444 !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    transition: all 0.18s !important;
+}}
+.stFormSubmitButton > button:hover {{
+    background: var(--lime) !important;
+    color: #111111 !important;
     border-color: var(--lime) !important;
 }}
 div[data-testid="stForm"] {{
@@ -582,113 +625,123 @@ def delete_event(year: int, month: int, day: int, dept: str, idx: int):
             save_data(DATA_FILE, st.session_state.cal_data)
 
 
-# ── 날씨 조회 (기상청 Open API - 파주시 격자 nx=91, ny=120) ─────────────────
-PAJU_NX, PAJU_NY = 91, 120
-KMA_API_KEY = "YOUR_API_KEY_HERE"  # 기상청 API 키 입력 (data.go.kr 발급)
+# ── 날씨 조회 (네이버 날씨 - 파주시) ────────────────────────────────────────
+import re as _re
 
-def _kma_base_time(dt: datetime) -> tuple:
-    """기상청 단기예보 base_time 계산 (02,05,08,11,14,17,20,23시)"""
-    hours = [2, 5, 8, 11, 14, 17, 20, 23]
-    h = dt.hour
-    valid = [x for x in hours if x <= h]
-    if valid:
-        base_h = valid[-1]
-        base_date = dt.strftime("%Y%m%d")
-    else:
-        base_h = 23
-        base_date = (dt - timedelta(days=1)).strftime("%Y%m%d")
-    return base_date, f"{base_h:02d}00"
-
-def _parse_pty(pty: str) -> str:
-    return {"0":"없음","1":"비","2":"비/눈","3":"눈","4":"소나기"}.get(pty, "없음")
-
-def _parse_sky(sky: str) -> str:
-    return {"1":"맑음","3":"구름 많음","4":"흐림"}.get(sky, "-")
-
-def _weather_icon(sky: str, pty: str) -> str:
-    if pty != "0": return "🌧️" if pty in ("1","4") else "🌨️" if pty == "3" else "🌦️"
-    return {"1":"☀️","3":"⛅","4":"🌥️"}.get(sky, "🌤️")
+def _sky_icon(text: str) -> str:
+    t = text.lower()
+    if "눈" in t: return "🌨️"
+    if "비" in t and "눈" in t: return "🌦️"
+    if "비" in t or "소나기" in t: return "🌧️"
+    if "흐림" in t or "구름많" in t: return "🌥️"
+    if "구름" in t: return "⛅"
+    return "☀️"
 
 @st.cache_data(ttl=1800)
-def get_weather_today() -> dict:
-    """오늘 현재 날씨 (기상청 초단기실황)"""
+def get_naver_weather() -> dict:
+    """네이버 날씨 파주시 스크래핑"""
     try:
-        now = datetime.now()
-        base_date = now.strftime("%Y%m%d")
-        base_time = f"{now.hour:02d}00" if now.minute >= 30 else f"{(now.hour-1)%24:02d}00"
-        params = urllib.parse.urlencode({
-            "serviceKey": KMA_API_KEY, "numOfRows": 10, "pageNo": 1,
-            "dataType": "JSON", "base_date": base_date, "base_time": base_time,
-            "nx": PAJU_NX, "ny": PAJU_NY,
-        })
-        url = f"https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?{params}"
-        req = urllib.request.Request(url, headers={"Accept":"application/json"})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            data = json.loads(r.read().decode())
-        items = {i["category"]: i["obsrValue"]
-                 for i in data["response"]["body"]["items"]["item"]}
-        temp = items.get("T1H", "-")
-        pty  = items.get("PTY", "0")
-        return {"temp": temp, "pty": pty, "sky": "1",
-                "icon": _weather_icon("1", pty),
-                "desc": f"{_parse_pty(pty) if pty != '0' else '맑음'}", "ok": True}
+        url = "https://search.naver.com/search.naver?query=파주시+날씨"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/124.0.0.0 Safari/537.36",
+                "Accept-Language": "ko-KR,ko;q=0.9",
+                "Accept": "text/html,application/xhtml+xml",
+            }
+        )
+        with urllib.request.urlopen(req, timeout=6) as r:
+            html = r.read().decode("utf-8", errors="ignore")
+
+        # 현재 기온
+        temp_m = _re.search(r'class="[^"]*current[^"]*"[^>]*>\s*([\d.\-]+)\s*</', html)
+        if not temp_m:
+            temp_m = _re.search(r'([\d.\-]+)</em>\s*°', html)
+        temp = temp_m.group(1) if temp_m else "-"
+
+        # 날씨 상태
+        status_m = _re.search(r'class="[^"]*summary[^"]*"[^>]*>\s*([^<]{2,12})\s*</', html)
+        status = status_m.group(1).strip() if status_m else ""
+        if not status:
+            status_m2 = _re.search(r'<p class="[^"]*cast_txt[^"]*"[^>]*>([^<]+)</p>', html)
+            status = status_m2.group(1).strip() if status_m2 else "날씨 정보"
+
+        # 최고/최저
+        hi_m  = _re.search(r'최고\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
+        lo_m  = _re.search(r'최저\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
+        hi = hi_m.group(1) if hi_m else "-"
+        lo = lo_m.group(1) if lo_m else "-"
+
+        # 습도 / 체감
+        hum_m  = _re.search(r'습도</span>[^<]*<span[^>]*>([^<]+)</span>', html)
+        feel_m = _re.search(r'체감</span>[^<]*<span[^>]*>([^<]+)</span>', html)
+        hum  = hum_m.group(1).strip()  if hum_m  else "-"
+        feel = feel_m.group(1).strip() if feel_m else "-"
+
+        icon = _sky_icon(status)
+        return {"ok": True, "temp": temp, "status": status, "icon": icon,
+                "hi": hi, "lo": lo, "hum": hum, "feel": feel}
     except Exception as e:
         return {"ok": False, "err": str(e)}
 
-@st.cache_data(ttl=3600)
-def get_weather_lastyear() -> dict:
-    """작년 동일 날짜 날씨 (기상청 과거관측 - ASOS 파주 AWS 867)"""
+@st.cache_data(ttl=7200)
+def get_naver_weather_lastyear() -> dict:
+    """네이버 날씨 작년 동일 날짜 (과거날씨)"""
     try:
         now = datetime.now()
-        ly = now.replace(year=now.year - 1)
-        params = urllib.parse.urlencode({
-            "serviceKey": KMA_API_KEY, "numOfRows": 1, "pageNo": 1,
-            "dataType": "JSON", "dataCd": "ASOS", "dateCd": "DAY",
-            "startDt": ly.strftime("%Y%m%d"), "endDt": ly.strftime("%Y%m%d"),
-            "stnIds": 867,
-        })
-        url = f"https://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList?{params}"
-        req = urllib.request.Request(url, headers={"Accept":"application/json"})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            data = json.loads(r.read().decode())
-        item = data["response"]["body"]["items"]["item"][0]
-        avg_t = item.get("avgTa", "-")
-        max_t = item.get("maxTa", "-")
-        min_t = item.get("minTa", "-")
-        rain  = item.get("sumRn", "0") or "0"
-        return {"avg": avg_t, "max": max_t, "min": min_t, "rain": rain,
-                "date": ly.strftime("%Y.%m.%d"), "ok": True}
+        ly  = now.replace(year=now.year - 1)
+        url = (f"https://search.naver.com/search.naver?query=파주시+날씨"
+               f"&date={ly.strftime('%Y%m%d')}")
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                              "AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36",
+                "Accept-Language": "ko-KR,ko;q=0.9",
+            }
+        )
+        with urllib.request.urlopen(req, timeout=6) as r:
+            html = r.read().decode("utf-8", errors="ignore")
+
+        hi_m  = _re.search(r'최고\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
+        lo_m  = _re.search(r'최저\s*</span>[^<]*<span[^>]*>\s*([\d.\-]+)', html)
+        hi = hi_m.group(1) if hi_m else "-"
+        lo = lo_m.group(1) if lo_m else "-"
+        return {"ok": True, "hi": hi, "lo": lo, "date": ly.strftime("%Y.%m.%d")}
     except Exception as e:
         return {"ok": False, "err": str(e)}
 
 def render_weather_card() -> str:
-    today = get_weather_today()
-    ly    = get_weather_lastyear()
     now   = datetime.now()
-    
-    # 오늘 날씨 섹션
-    if today.get("ok"):
-        icon = today["icon"]
-        temp = today["temp"]
-        desc = today["desc"]
+    today = get_naver_weather()
+    ly    = get_naver_weather_lastyear()
+
+    if today.get("ok") and today["temp"] != "-":
         today_html = f"""
         <div class='weather-row'>
-            <span class='weather-icon'>{icon}</span>
+            <span class='weather-icon'>{today["icon"]}</span>
             <div>
-                <div class='weather-temp'>{temp}°C</div>
-                <div class='weather-desc'>{desc} · 파주시</div>
+                <div class='weather-temp'>{today["temp"]}°C</div>
+                <div class='weather-desc'>{today["status"]} · 파주시</div>
             </div>
+        </div>
+        <div style='display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;'>
+            <span style='font-size:0.65rem;color:#888;'>최고 <b style='color:#ff6b6b;'>{today["hi"]}°</b></span>
+            <span style='font-size:0.65rem;color:#888;'>최저 <b style='color:#6bb5ff;'>{today["lo"]}°</b></span>
+            <span style='font-size:0.65rem;color:#888;'>습도 <b style='color:#ccc;'>{today["hum"]}</b></span>
+            <span style='font-size:0.65rem;color:#888;'>체감 <b style='color:#ccc;'>{today["feel"]}°</b></span>
         </div>"""
     else:
-        today_html = f"<div class='weather-desc' style='color:#555;'>API 키 미설정<br><span style='font-size:0.62rem;'>data.go.kr에서 기상청 API 키를 발급 후<br>app.py의 KMA_API_KEY에 입력하세요</span></div>"
+        err = today.get("err","")
+        today_html = f"<div style='font-size:0.68rem;color:#555;padding:6px 0;'>날씨 조회 실패<br><span style='font-size:0.6rem;'>{err[:60]}</span></div>"
 
-    # 작년 날씨 섹션
-    if ly.get("ok"):
+    if ly.get("ok") and ly["hi"] != "-":
         ly_html = f"""
         <div class='weather-last-year'>
-            <b>작년 동일({ly["date"]})</b><br>
-            평균 {ly["avg"]}°C &nbsp;|&nbsp; 최고 {ly["max"]}°C &nbsp;|&nbsp; 최저 {ly["min"]}°C<br>
-            강수량 {ly["rain"]}mm
+            <b>작년 오늘 ({ly["date"]})</b><br>
+            최고 {ly["hi"]}°C &nbsp;/&nbsp; 최저 {ly["lo"]}°C
         </div>"""
     else:
         ly_html = "<div class='weather-last-year' style='color:#444;'>작년 데이터 조회 불가</div>"
@@ -696,7 +749,7 @@ def render_weather_card() -> str:
     return f"""
     <div class='weather-card'>
         <span class='weather-title'>🌤 TODAY'S WEATHER · PAJU</span>
-        <div class='weather-label'>현재 날씨</div>
+        <div class='weather-label'>현재 날씨 <span style='color:#555;font-weight:400;font-size:0.58rem;'>(네이버 날씨)</span></div>
         {today_html}
         <hr class='weather-divider'>
         <div class='weather-label'>작년 오늘</div>
@@ -1022,9 +1075,9 @@ with side_col:
         바로가기
     </div>""", unsafe_allow_html=True)
 
-    # 바로가기 버튼 렌더링
-    shortcuts = st.session_state.shortcuts
-    for key, sc in shortcuts.items():
+    # 바로가기 버튼 렌더링 (순서 적용)
+    ordered_sc = get_ordered_shortcuts()
+    for key, sc in ordered_sc:
         label = sc.get("label", key)
         stype = sc.get("type", "board")
         url = sc.get("url", "")
@@ -1067,6 +1120,37 @@ with side_col:
     if st.session_state.authenticated:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         with st.expander("⚙️ 바로가기 관리"):
+            # ── 순서 조정 ─────────────────────────────────────────────────
+            ordered_keys = [k for k, _ in get_ordered_shortcuts()]
+            if len(ordered_keys) > 1:
+                st.markdown("**🔀 버튼 순서 조정**")
+                move_key = st.selectbox("이동할 버튼", ordered_keys, key="move_sc_sel")
+                mv_c1, mv_c2 = st.columns(2)
+                with mv_c1:
+                    if st.button("▲ 위로", key="sc_mv_up"):
+                        idx = ordered_keys.index(move_key)
+                        if idx > 0:
+                            ordered_keys[idx-1], ordered_keys[idx] = ordered_keys[idx], ordered_keys[idx-1]
+                            st.session_state.sc_order = ordered_keys
+                            save_sc_order(ordered_keys)
+                            st.rerun()
+                with mv_c2:
+                    if st.button("▼ 아래로", key="sc_mv_dn"):
+                        idx = ordered_keys.index(move_key)
+                        if idx < len(ordered_keys)-1:
+                            ordered_keys[idx], ordered_keys[idx+1] = ordered_keys[idx+1], ordered_keys[idx]
+                            st.session_state.sc_order = ordered_keys
+                            save_sc_order(ordered_keys)
+                            st.rerun()
+                # 현재 순서 미리보기
+                st.markdown(
+                    "<div style='font-size:0.68rem;color:#888;margin-bottom:8px;'>"
+                    + " → ".join([st.session_state.shortcuts.get(k,{}).get("label",k) for k in ordered_keys])
+                    + "</div>",
+                    unsafe_allow_html=True
+                )
+                st.markdown("---")
+            # ── 버튼 추가 ─────────────────────────────────────────────────
             sc_label = st.text_input("버튼 이름", max_chars=15, key="sc_label")
             sc_key_in = st.text_input("키 (영문/숫자, 중복불가)", max_chars=20, key="sc_key")
             sc_type = st.selectbox("타입", ["board", "url", "file"], key="sc_type")
@@ -1092,6 +1176,10 @@ with side_col:
                         entry["file_name"] = sc_file.name
                     st.session_state.shortcuts[sc_key_clean] = entry
                     save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                    # 순서 목록에 추가
+                    if sc_key_clean not in st.session_state.sc_order:
+                        st.session_state.sc_order.append(sc_key_clean)
+                        save_sc_order(st.session_state.sc_order)
                     st.success(f"'{sc_label}' 버튼이 추가됐습니다.")
                     st.rerun()
                 else:
@@ -1132,6 +1220,9 @@ with side_col:
                 if st.button("삭제 확인"):
                     del st.session_state.shortcuts[del_sc_key]
                     save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                    if del_sc_key in st.session_state.sc_order:
+                        st.session_state.sc_order.remove(del_sc_key)
+                        save_sc_order(st.session_state.sc_order)
                     st.rerun()
 
 
