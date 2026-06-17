@@ -304,16 +304,16 @@ html, body, [class*="css"], p, span, div, label, button, input, textarea, select
     visibility: hidden;
     opacity: 0;
     width: 260px;
-    background: var(--black);
-    border: 1px solid var(--lime);
-    color: var(--white);
+    background: #2d2d2d !important;
+    border: 1px solid #c8ff00;
+    color: #ffffff !important;
     font-size: 0.72rem;
     line-height: 1.7;
     border-radius: 6px;
     padding: 10px 14px;
     position: fixed;
     z-index: 99999;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.7);
     transition: opacity 0.12s;
     pointer-events: none;
     white-space: pre-wrap;
@@ -1193,6 +1193,7 @@ with side_col:
     if st.session_state.authenticated:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         with st.expander("⚙️ 바로가기 관리"):
+            shortcuts = st.session_state.shortcuts  # 로컬 참조
             # ── 순서 조정 ─────────────────────────────────────────────────
             ordered_keys = [k for k, _ in get_ordered_shortcuts()]
             if len(ordered_keys) > 1:
