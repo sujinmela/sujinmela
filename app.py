@@ -1,224 +1,300 @@
-import re
-import json
-import requests
-from datetime import datetime
-from bs4 import BeautifulSoup
 import streamlit as st
+import pandas as pd
+from datetime import datetime, date
+import calendar
+from pathlib import Path
+import base64
 
-# ── 상수 ─────────────────────────────────────────────────────────────
-CIRCLED = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩"]
-NOISE   = re.compile(r"사은\s*사은\s*종료|쇼핑뉴스\s*행사\s*종료")
-TRAILING = re.compile(
-    r"\s+(백화점|아울렛|에비뉴엘|입점|전점|각\s*지점|일부\s*지점|모바일\s*참여"
-    r"|본점|잠실점|강남점|[0-9]+F|B[0-9]+|[0-9]+\.[0-9]+\(|~).+$"
+# =========================
+# 기본 설정
+# =========================
+
+st.set_page_config(
+    page_title="롯데프리미엄아울렛 파주점 동료사원 포털",
+    page_icon="🏬",
+    layout="wide"
 )
-HISTORY_KEY = "lms_history"
 
-# ── 파싱 ─────────────────────────────────────────────────────────────
-def fetch_and_parse(url: str):
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept-Language": "ko-KR,ko;q=0.9",
-        "Referer": "https://www.lotteshopping.com/",
-    }
-    try:
-        resp = requests.get(url, headers=headers, timeout=15)
-        resp.raise_for_status()
-        resp.encoding = "utf-8"
-    except requests.exceptions.Timeout:
-        return None, "페이지 응답 시간이 초과됐습니다."
-    except requests.exceptions.HTTPError as e:
-        return None, f"페이지를 불러오지 못했습니다. (HTTP {e.response.status_code})"
-    except Exception as e:
-        return None, f"네트워크 오류: {e}"
+PASSWORD = "1234"
 
-    soup = BeautifulSoup(resp.text, "html.parser")
-    sections = []
-    for h3 in soup.find_all("h3"):
-        title = h3.get_text(strip=True)
-        if not re.search(r"\[.+?\]", title):
-            continue
-        # [XXX]뒤 공백 보정
-        title = re.sub(r"(\])\s*([^\s])", r"\1 \2", title)
+DEPARTMENTS = {
+    "영업기획팀": "#A50034",
+    "지원팀": "#1E3A5F",
+    "시설팀": "#2E7D32"
+}
 
-        items = []
-        ul = h3.find_next_sibling("ul")
-        if ul:
-            for li in ul.find_all("li"):
-                raw = li.get_text(separator=" ", strip=True)
-                raw = NOISE.sub("", raw).strip()
-                raw = re.sub(r"\s+", " ", raw)
-                raw = TRAILING.sub("", raw).strip()
-                if raw and "[" in raw:
-                    items.append(raw)
-        if items:
-            sections.append((title, items))
+NOTICE_FILE = Path("data/notices.csv")
+SHORTCUT_FILE = Path("data/shortcuts.csv")
 
-    if not sections:
-        return None, "행사 내용을 찾지 못했습니다. URL을 확인해 주세요."
-    return sections, ""
+NOTICE_FILE.parent.mkdir(exist_ok=True)
 
+# =========================
+# 파일 초기화
+# =========================
 
-# ── LMS 조립 ─────────────────────────────────────────────────────────
-def build_lms_text(sections, store: str, url: str) -> str:
-    lines = [
-        f"(광고)롯데백화점 {store}",
-        "${TMS_M_NAME} 고객님 안녕하세요.",
-        f"이번주 롯데백화점 {store} 소식을 안내드립니다.",
-        "",
-        "",
-    ]
-    for title, items in sections:
-        lines.append(title)
-        for i, item in enumerate(items[:6]):
-            num = CIRCLED[i] if i < len(CIRCLED) else f"{i+1}."
-            lines.append(f"{num} {item}")
-        lines.append("")   # 소그룹 사이 빈 줄
+if not NOTICE_FILE.exists():
+    pd.DataFrame(columns=[
+        "date",
+        "department",
+        "title",
+        "detail",
+        "created_at"
+    ]).to_csv(NOTICE_FILE, index=False)
 
-    lines += [
-        "",
-        "자세한 사항 및 더욱 다양한 소식은 하단의 링크를 통해 확인 가능합니다.",
-        url,
-        "문의전화 1577-0001",
-        "무료수신거부 080-880-2626",
-    ]
-    return "\n".join(lines)
+if not SHORTCUT_FILE.exists():
+    pd.DataFrame([
+        ["매장안내", "https://www.lotteshopping.com/store/main?cstrCd=0339"],
+        ["주요시설", ""],
+        ["파트너포털", ""],
+        ["온라인 계정 생성", ""],
+        ["직원식당", ""],
+        ["직원주차", ""],
+        ["이벤트홀", ""],
+        ["사원증/유니폼", ""],
+        ["점포 조직도", ""],
+        ["POS/PDA", ""]
+    ], columns=["name", "url"]).to_csv(SHORTCUT_FILE, index=False)
 
+# =========================
+# 데이터 로드
+# =========================
 
-# ── 이력 관리 (session_state) ─────────────────────────────────────────
-def load_history():
-    return st.session_state.get(HISTORY_KEY, [])
+notices = pd.read_csv(NOTICE_FILE)
+shortcuts = pd.read_csv(SHORTCUT_FILE)
 
-def save_history(entry: dict):
-    if HISTORY_KEY not in st.session_state:
-        st.session_state[HISTORY_KEY] = []
-    st.session_state[HISTORY_KEY].insert(0, entry)   # 최신순
+# =========================
+# 배경 이미지
+# =========================
 
-def delete_history(idx: int):
-    if HISTORY_KEY in st.session_state:
-        st.session_state[HISTORY_KEY].pop(idx)
+bg_path = Path("assets/paju_bg.jpg")
 
+if bg_path.exists():
+    with open(bg_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
 
-# ── 메인 앱 ──────────────────────────────────────────────────────────
-def main():
-    st.set_page_config(page_title="쇼핑 하이라이트 기반 LMS 생성기", layout="wide")
-    st.title("쇼핑 하이라이트 기반 LMS 생성기")
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background:
+                linear-gradient(
+                    rgba(255,255,255,0.90),
+                    rgba(255,255,255,0.92)
+                ),
+                url("data:image/jpeg;base64,{encoded}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
 
-    STORES = (
-        ["본점","잠실점","강남점","건대스타시티점","관악점","김포공항점","노원점","미아점","영등포점","청량리점"]
-        + ["인천점","동탄점","구리점","수원점","안산점","일산점","중동점","평촌점"]
-        + ["부산본점","광복점","광주점","대구점","대전점","동래점","상인점","센텀시티점","울산점","전주점","창원점","포항점"]
+        .main-title {{
+            background:#A50034;
+            color:white;
+            padding:18px 24px;
+            border-radius:16px;
+            font-size:28px;
+            font-weight:700;
+            margin-bottom:20px;
+        }}
+
+        .calendar-cell {{
+            border:1px solid #E5E5E5;
+            background:rgba(255,255,255,0.92);
+            border-radius:12px;
+            padding:10px;
+            min-height:180px;
+        }}
+
+        .notice-item {{
+            color:white;
+            padding:4px 8px;
+            margin:4px 0;
+            border-radius:8px;
+            font-size:12px;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+        }}
+
+        .shortcut-btn {{
+            display:block;
+            text-align:center;
+            padding:12px;
+            margin-bottom:10px;
+            background:#ffffff;
+            border:1px solid #dddddd;
+            border-radius:12px;
+            color:#333333;
+            text-decoration:none;
+            font-weight:600;
+        }}
+
+        .shortcut-btn:hover {{
+            border-color:#A50034;
+            color:#A50034;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
     )
 
-    tab_gen, tab_history = st.tabs(["✨ LMS 자동생성 (URL)", "📋 생성 이력"])
+# =========================
+# 헤더
+# =========================
 
-    # ── 생성 탭 ──────────────────────────────────────────────────────
-    with tab_gen:
-        st.subheader("URL 입력 → LMS 문안 자동생성")
-        st.caption("쇼핑 하이라이트 URL과 점포명만 입력하면 LMS 문안을 즉시 생성합니다. API 키 불필요.")
+st.markdown(
+    '<div class="main-title">롯데프리미엄아울렛 파주점 동료사원 포털</div>',
+    unsafe_allow_html=True
+)
 
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            url_input = st.text_input(
-                "쇼핑 하이라이트 URL",
-                placeholder="https://www.lotteshopping.com/shopnow/cntsList?shpgHhlghNo=SHH...&shpgHhlghAditNo=SHA...",
+left, right = st.columns([4, 1])
+
+# =========================
+# 캘린더
+# =========================
+
+with left:
+
+    today = date.today()
+
+    c1, c2 = st.columns([1, 1])
+
+    year = c1.selectbox(
+        "연도",
+        range(today.year - 1, today.year + 3),
+        index=1
+    )
+
+    month = c2.selectbox(
+        "월",
+        range(1, 13),
+        index=today.month - 1
+    )
+
+    cal = calendar.monthcalendar(year, month)
+
+    weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+
+    cols = st.columns(7)
+
+    for idx, day in enumerate(weekdays):
+        cols[idx].markdown(f"### {day}")
+
+    for week in cal:
+
+        week_cols = st.columns(7)
+
+        for i, day in enumerate(week):
+
+            if day == 0:
+                week_cols[i].empty()
+                continue
+
+            current_date = f"{year}-{month:02d}-{day:02d}"
+
+            day_notices = notices[
+                notices["date"] == current_date
+            ]
+
+            html = f'<div class="calendar-cell"><b>{day}</b><hr>'
+
+            for dept in DEPARTMENTS.keys():
+
+                dept_notice = day_notices[
+                    day_notices["department"] == dept
+                ]
+
+                html += f"<div style='font-size:11px;color:#666'>{dept}</div>"
+
+                for _, row in dept_notice.iterrows():
+
+                    html += f"""
+                    <div class="notice-item"
+                         style="background:{DEPARTMENTS[dept]}"
+                         title="{row['detail']}">
+                         {row['title']}
+                    </div>
+                    """
+
+            html += "</div>"
+
+            week_cols[i].markdown(html, unsafe_allow_html=True)
+
+# =========================
+# 우측 메뉴
+# =========================
+
+with right:
+
+    st.subheader("🔗 바로가기")
+
+    for _, row in shortcuts.iterrows():
+
+        url = row["url"] if pd.notna(row["url"]) else "#"
+
+        st.markdown(
+            f"""
+            <a href="{url}" target="_blank" class="shortcut-btn">
+                {row['name']}
+            </a>
+            """,
+            unsafe_allow_html=True
+        )
+
+# =========================
+# 관리자 입력
+# =========================
+
+st.divider()
+
+with st.expander("🔒 관리자 등록"):
+
+    password = st.text_input(
+        "비밀번호 4자리",
+        type="password"
+    )
+
+    if password == PASSWORD:
+
+        with st.form("notice_form"):
+
+            notice_date = st.date_input("일자")
+
+            department = st.selectbox(
+                "부서",
+                list(DEPARTMENTS.keys())
             )
-        with col2:
-            store = st.selectbox("점포명", ["점포를 선택하세요"] + STORES)
 
-        run = st.button("✨ LMS 문안 자동생성", type="primary", use_container_width=True)
+            title = st.text_input(
+                "제목",
+                max_chars=20
+            )
 
-        if run:
-            if not url_input.strip():
-                st.warning("URL을 입력해 주세요.")
-            elif store == "점포를 선택하세요":
-                st.warning("점포명을 선택해 주세요.")
-            else:
-                with st.spinner("페이지에서 행사 내용을 읽는 중..."):
-                    sections, err = fetch_and_parse(url_input.strip())
-                if err:
-                    st.error(f"❌ {err}")
-                else:
-                    result = build_lms_text(sections, store, url_input.strip())
-                    st.session_state["current_lms"] = result
-                    st.session_state["current_meta"] = {
-                        "store": store,
-                        "url": url_input.strip(),
-                        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        "lms": result,
-                        "char_count": len(result),
-                    }
+            detail = st.text_area(
+                "상세내용",
+                max_chars=50
+            )
 
-        if st.session_state.get("current_lms"):
-            result = st.session_state["current_lms"]
-            meta   = st.session_state.get("current_meta", {})
-            result_len = len(result)
-            is_over = result_len > 1000
+            submit = st.form_submit_button("등록")
 
-            st.divider()
-            c1, c2, c3 = st.columns([3, 1, 1])
-            with c1:
-                st.markdown("### 📨 생성된 LMS 문안")
-            with c2:
-                color = "red" if is_over else "green"
-                warn  = "⚠ 권장 초과" if is_over else "✓ 적정"
-                st.markdown(
-                    f'<div style="padding-top:26px;text-align:right;'
-                    f'color:{color};font-weight:600">{result_len:,}자 {warn}</div>',
-                    unsafe_allow_html=True,
+            if submit:
+
+                new_row = pd.DataFrame([{
+                    "date": notice_date.strftime("%Y-%m-%d"),
+                    "department": department,
+                    "title": title,
+                    "detail": detail,
+                    "created_at": datetime.now()
+                }])
+
+                updated = pd.concat(
+                    [notices, new_row],
+                    ignore_index=True
                 )
-            with c3:
-                if st.button("📁 이력에 저장", use_container_width=True):
-                    save_history(meta)
-                    st.success("이력에 저장됐습니다.")
 
-            st.text_area("복사용 LMS 문안", value=result, height=450, key="lms_copy")
+                updated.to_csv(NOTICE_FILE, index=False)
 
-            if is_over:
-                st.warning(f"{result_len:,}자 — LMS 1,000자 제한을 초과할 수 있습니다.")
+                st.success("등록 완료!")
+                st.rerun()
 
-    # ── 이력 탭 ──────────────────────────────────────────────────────
-    with tab_history:
-        st.subheader("📋 LMS 생성 이력")
-        history = load_history()
-
-        if not history:
-            st.info("아직 저장된 이력이 없습니다. 생성 탭에서 '이력에 저장' 버튼을 눌러주세요.")
-        else:
-            st.caption(f"총 {len(history)}건 저장됨 (최신순)")
-            for idx, entry in enumerate(history):
-                with st.expander(
-                    f"[{entry['created_at']}] 롯데백화점 {entry['store']} "
-                    f"— {entry['char_count']:,}자",
-                    expanded=(idx == 0),
-                ):
-                    st.caption(f"URL: {entry['url']}")
-                    st.text_area(
-                        "LMS 문안",
-                        value=entry["lms"],
-                        height=360,
-                        key=f"hist_{idx}",
-                    )
-                    col_dl, col_del = st.columns([1, 1])
-                    with col_dl:
-                        st.download_button(
-                            "⬇ TXT 다운로드",
-                            data=entry["lms"].encode("utf-8-sig"),
-                            file_name=(
-                                f"lms_{entry['store']}_"
-                                f"{entry['created_at'].replace(':', '').replace(' ', '_')}.txt"
-                            ),
-                            mime="text/plain",
-                            key=f"dl_{idx}",
-                        )
-                    with col_del:
-                        if st.button("🗑 삭제", key=f"del_{idx}", use_container_width=True):
-                            delete_history(idx)
-                            st.rerun()
-
-
-if __name__ == "__main__":
-    main()
+    elif password:
+        st.error("비밀번호가 일치하지 않습니다.")
