@@ -75,8 +75,6 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "show_updates" not in st.session_state:
     st.session_state.show_updates = False
-if "show_admin" not in st.session_state:
-    st.session_state.show_admin = False
 if "show_shortcut_admin" not in st.session_state:
     st.session_state.show_shortcut_admin = False
 if "view_month" not in st.session_state:
@@ -84,7 +82,13 @@ if "view_month" not in st.session_state:
 if "view_year" not in st.session_state:
     st.session_state.view_year = datetime.today().year
 if "board_key" not in st.session_state:
-    st.session_state.board_key = None   # 현재 열린 게시판 shortcut key
+    st.session_state.board_key = None
+if "show_add" not in st.session_state:
+    st.session_state.show_add = False
+if "show_edit" not in st.session_state:
+    st.session_state.show_edit = False
+if "show_sc_admin" not in st.session_state:
+    st.session_state.show_sc_admin = False
 if "sc_order" not in st.session_state:
     # shortcuts의 key 순서를 저장 (없으면 현재 순서 사용)
     sc_order_file = Path("sc_order.json")
@@ -581,30 +585,10 @@ div[data-testid="stForm"] {{
     border-radius: 6px !important;
 }}
 /* expander 헤더 */
-.stExpander summary {{
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    font-size: 0.82rem !important;
-}}
-.stExpander summary:hover {{
-    background: rgba(200,255,0,0.06) !important;
-}}
-/* expander summary 텍스트 흰색 - 라벨 포함 */
-.stExpander summary p,
-.stExpander summary label,
-.stExpander summary div {{
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    font-size: 0.82rem !important;
-}}
-/* 화살표 SVG */
-.stExpander summary svg {{
-    fill: #c8ff00 !important;
-    min-width: 16px !important;
-}}
-/* expander 내부 여백 */
-.stExpander [data-testid="stExpanderDetails"] {{
-    padding-top: 8px !important;
+.stExpander {{
+    background: rgba(20,20,20,0.95) !important;
+    border: 1px solid #2a2a2a !important;
+    border-radius: 6px !important;
 }}
 
 /* ── 입력 필드 가독성 개선 ── */
@@ -694,27 +678,7 @@ p, span, div, label {{ color: var(--white); }}
 }}
 </style>
 <script>
-// _arrow_right 텍스트 제거 (텍스트 노드만, 라벨은 유지)
-function removeArrowText() {{
-    document.querySelectorAll('summary').forEach(function(s) {{
-        Array.from(s.childNodes).forEach(function(node) {{
-            // 순수 텍스트 노드 중 _arrow 포함된 것만 제거
-            if (node.nodeType === 3 && node.textContent.includes('_arrow')) {{
-                node.textContent = '';
-            }}
-        }});
-        // span 중 텍스트만 있고 _arrow 포함된 것 제거
-        s.querySelectorAll('span').forEach(function(span) {{
-            if (!span.children.length && span.textContent && span.textContent.trim().startsWith('_arrow')) {{
-                span.textContent = '';
-            }}
-        }});
-    }});
-}}
-removeArrowText();
-setInterval(removeArrowText, 300);
-const _arrowObs = new MutationObserver(removeArrowText);
-_arrowObs.observe(document.body, {{childList: true, subtree: true}});
+// expander 제거됨 - _arrow_right 이슈 해결
 
 document.addEventListener('mousemove', function(e) {{
     const tips = document.querySelectorAll('.tooltip-text');
@@ -1125,7 +1089,9 @@ with main_col:
 
     # ── 공지 등록 (인증된 경우만) ─────────────────────────────────────────────
     if st.session_state.authenticated:
-        with st.expander("➕ 공지 등록", expanded=st.session_state.show_admin):
+        if st.button("➕  공지 등록", key="toggle_add", use_container_width=True):
+            st.session_state.show_add = not st.session_state.show_add
+        if st.session_state.show_add:
             with st.form("add_event_form", clear_on_submit=True):
                 f_col1, f_col2 = st.columns(2)
                 with f_col1:
@@ -1157,7 +1123,9 @@ with main_col:
                         st.rerun()
 
         # ── 공지 수정 / 삭제 ────────────────────────────────────────────────
-        with st.expander("✏️ 공지 수정 / 삭제"):
+        if st.button("✏️  공지 수정 / 삭제", key="toggle_edit", use_container_width=True):
+            st.session_state.show_edit = not st.session_state.show_edit
+        if st.session_state.show_edit:
             md_col1, md_col2, md_col3, md_col4 = st.columns(4)
             with md_col1:
                 md_year = st.number_input("년도 ", min_value=2020, max_value=2035,
@@ -1334,7 +1302,9 @@ with side_col:
     # ── 바로가기 관리 (인증된 경우만) ────────────────────────────────────────
     if st.session_state.authenticated:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        with st.expander("⚙️ 바로가기 관리"):
+        if st.button("⚙️  바로가기 관리", key="toggle_sc_admin", use_container_width=True):
+            st.session_state.show_sc_admin = not st.session_state.show_sc_admin
+        if st.session_state.show_sc_admin:
             shortcuts = st.session_state.shortcuts  # 로컬 참조
             # ── 순서 조정 ─────────────────────────────────────────────────
             ordered_keys = [k for k, _ in get_ordered_shortcuts()]
