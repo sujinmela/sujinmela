@@ -155,6 +155,7 @@ html, body, [class*="css"] {{
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    overflow: visible;
 }}
 .cal-table th {{
     background: #1a3a5c;
@@ -176,6 +177,8 @@ html, body, [class*="css"] {{
     height: 110px;
     background: rgba(255,255,255,0.7);
     transition: background 0.2s;
+    overflow: visible;
+    position: relative;
 }}
 .cal-cell:hover {{ background: rgba(255,255,255,0.96); }}
 .cal-cell.today {{ background: rgba(200,16,46,0.04); border-color: #c8102e; }}
@@ -203,7 +206,7 @@ html, body, [class*="css"] {{
     padding: 2px 6px;
     border-radius: 3px;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: default;
@@ -218,23 +221,22 @@ html, body, [class*="css"] {{
 .has-tooltip .tooltip-text {{
     visibility: hidden;
     opacity: 0;
-    width: 220px;
+    width: 240px;
     background: #1a1a1a;
     color: #fff;
     font-size: 0.72rem;
-    line-height: 1.5;
+    line-height: 1.6;
     border-radius: 6px;
-    padding: 8px 10px;
-    position: absolute;
-    z-index: 9999;
-    bottom: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    transition: opacity 0.2s;
+    padding: 10px 12px;
+    position: fixed;
+    z-index: 99999;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.30);
+    transition: opacity 0.15s;
     pointer-events: none;
-    white-space: normal;
+    white-space: pre-wrap;
     word-break: keep-all;
+    max-height: 200px;
+    overflow-y: auto;
 }}
 .has-tooltip:hover .tooltip-text {{
     visibility: visible;
@@ -385,6 +387,21 @@ div[data-testid="stForm"] {{
     color: #1a3a5c !important;
 }}
 </style>
+<script>
+document.addEventListener('mousemove', function(e) {{
+    const tips = document.querySelectorAll('.tooltip-text');
+    tips.forEach(function(tip) {{
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let x = e.clientX + 14;
+        let y = e.clientY - 10;
+        if (x + 260 > vw) x = e.clientX - 260;
+        if (y + 200 > vh) y = e.clientY - 210;
+        tip.style.left = x + 'px';
+        tip.style.top  = y + 'px';
+    }});
+}});
+</script>
 """, unsafe_allow_html=True)
 
 
@@ -436,6 +453,23 @@ def delete_event(year: int, month: int, day: int, dept: str, idx: int):
             st.session_state.cal_data["__updates__"] = st.session_state.updates
             save_data(DATA_FILE, st.session_state.cal_data)
 
+
+def edit_event(year: int, month: int, day: int, dept: str, idx: int, new_title: str, new_detail: str):
+    key = get_cal_key(year, month, day, dept)
+    if key in st.session_state.cal_data:
+        items = st.session_state.cal_data[key]
+        if 0 <= idx < len(items):
+            items[idx]["title"] = new_title
+            items[idx]["detail"] = new_detail
+            log = {
+                "ts": datetime.now().strftime("%Y.%m.%d %H:%M"),
+                "dept": f"[수정] {dept}",
+                "title": new_title,
+                "date": f"{year}.{month:02d}.{day:02d}",
+            }
+            st.session_state.updates.insert(0, log)
+            st.session_state.cal_data["__updates__"] = st.session_state.updates
+            save_data(DATA_FILE, st.session_state.cal_data)
 
 # ── 캘린더 HTML 생성 ──────────────────────────────────────────────────────────
 def render_calendar_html(year: int, month: int) -> str:
@@ -586,7 +620,7 @@ with main_col:
                 with f_col2:
                     title_in = st.text_input("제목 (캘린더 표시)", max_chars=20)
                     detail_in = st.text_area(
-                        "상세 내용 (툴팁, 50자 미만)", max_chars=49, height=100
+                        "상세 내용 (툴팁, 200자 이내)", max_chars=200, height=120
                     )
                 submitted = st.form_submit_button("등록", use_container_width=True)
                 if submitted:
@@ -600,29 +634,53 @@ with main_col:
                         st.success("등록되었습니다.")
                         st.rerun()
 
-        # ── 공지 삭제 ──────────────────────────────────────────────────────
-        with st.expander("🗑️ 공지 삭제"):
-            d_col1, d_col2, d_col3, d_col4 = st.columns(4)
-            with d_col1:
-                del_year = st.number_input("년도 ", min_value=2020, max_value=2035,
-                                           value=st.session_state.view_year, key="dy")
-            with d_col2:
-                del_month = st.number_input("월 ", min_value=1, max_value=12,
-                                            value=st.session_state.view_month, key="dm")
-            with d_col3:
-                del_day = st.number_input("일 ", min_value=1, max_value=31,
-                                          value=1, key="dd")
-            with d_col4:
-                del_dept = st.selectbox("부서 ", DEPTS, key="ddept")
-            del_key = get_cal_key(int(del_year), int(del_month), int(del_day), del_dept)
-            items = st.session_state.cal_data.get(del_key, [])
+        # ── 공지 수정 / 삭제 ────────────────────────────────────────────────
+        with st.expander("✏️ 공지 수정 / 삭제"):
+            md_col1, md_col2, md_col3, md_col4 = st.columns(4)
+            with md_col1:
+                md_year = st.number_input("년도 ", min_value=2020, max_value=2035,
+                                          value=st.session_state.view_year, key="mdy")
+            with md_col2:
+                md_month = st.number_input("월 ", min_value=1, max_value=12,
+                                           value=st.session_state.view_month, key="mdm")
+            with md_col3:
+                md_day = st.number_input("일 ", min_value=1, max_value=31,
+                                         value=1, key="mdd")
+            with md_col4:
+                md_dept = st.selectbox("부서 ", DEPTS, key="mddept")
+
+            md_key = get_cal_key(int(md_year), int(md_month), int(md_day), md_dept)
+            items = st.session_state.cal_data.get(md_key, [])
             if items:
                 for i, it in enumerate(items):
-                    c1, c2 = st.columns([6, 1])
-                    c1.markdown(f"**{it['title']}** — {it['detail']}")
-                    if c2.button("삭제", key=f"del_{del_key}_{i}"):
-                        delete_event(int(del_year), int(del_month), int(del_day), del_dept, i)
-                        st.rerun()
+                    st.markdown(f"---")
+                    st.markdown(f"**#{i+1}** · {it['title']}")
+                    edit_mode_key = f"edit_mode_{md_key}_{i}"
+                    if edit_mode_key not in st.session_state:
+                        st.session_state[edit_mode_key] = False
+
+                    btn_c1, btn_c2 = st.columns([1, 1])
+                    with btn_c1:
+                        if st.button("✏️ 수정", key=f"editbtn_{md_key}_{i}"):
+                            st.session_state[edit_mode_key] = not st.session_state[edit_mode_key]
+                            st.rerun()
+                    with btn_c2:
+                        if st.button("🗑️ 삭제", key=f"delbtn_{md_key}_{i}"):
+                            delete_event(int(md_year), int(md_month), int(md_day), md_dept, i)
+                            st.rerun()
+
+                    if st.session_state.get(edit_mode_key, False):
+                        with st.form(key=f"edit_form_{md_key}_{i}"):
+                            new_title = st.text_input("제목 수정", value=it["title"], max_chars=20)
+                            new_detail = st.text_area("상세내용 수정", value=it["detail"],
+                                                       max_chars=200, height=100)
+                            if st.form_submit_button("저장"):
+                                if new_title.strip():
+                                    edit_event(int(md_year), int(md_month), int(md_day),
+                                               md_dept, i, new_title.strip(), new_detail.strip())
+                                    st.session_state[edit_mode_key] = False
+                                    st.success("수정되었습니다.")
+                                    st.rerun()
             else:
                 st.info("해당 날짜/부서에 등록된 공지가 없습니다.")
 
@@ -770,10 +828,40 @@ with side_col:
                     st.rerun()
                 else:
                     st.warning("버튼 이름과 키를 입력해주세요.")
+            # 수정
+            if shortcuts:
+                st.markdown("---")
+                st.markdown("**버튼 수정**")
+                edit_sc_key = st.selectbox("수정할 버튼 선택", list(shortcuts.keys()), key="edit_sc_sel")
+                if edit_sc_key and edit_sc_key in shortcuts:
+                    esc = shortcuts[edit_sc_key]
+                    with st.form("edit_shortcut_form"):
+                        new_sc_label = st.text_input("버튼 이름", value=esc.get("label",""), max_chars=15)
+                        new_sc_type  = st.selectbox("타입", ["board","url","file"],
+                                                    index=["board","url","file"].index(esc.get("type","board")))
+                        new_sc_url   = st.text_input("URL", value=esc.get("url",""), placeholder="https://...")
+                        new_sc_file  = None
+                        if new_sc_type == "file":
+                            new_sc_file = st.file_uploader("새 파일 업로드 (변경 시에만)", key="edit_sc_file")
+                        new_sc_red   = st.checkbox("빨간 버튼", value=esc.get("red", False))
+                        if st.form_submit_button("수정 저장"):
+                            esc["label"] = new_sc_label
+                            esc["type"]  = new_sc_type
+                            esc["url"]   = new_sc_url
+                            esc["red"]   = new_sc_red
+                            if new_sc_type == "file" and new_sc_file is not None:
+                                esc["file_b64"]  = base64.b64encode(new_sc_file.read()).decode()
+                                esc["file_name"] = new_sc_file.name
+                            save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
+                            st.success("수정되었습니다.")
+                            st.rerun()
+
             # 삭제
             if shortcuts:
-                del_sc_key = st.selectbox("삭제할 버튼", list(shortcuts.keys()))
-                if st.button("삭제"):
+                st.markdown("---")
+                st.markdown("**버튼 삭제**")
+                del_sc_key = st.selectbox("삭제할 버튼", list(shortcuts.keys()), key="del_sc_sel")
+                if st.button("삭제 확인"):
                     del st.session_state.shortcuts[del_sc_key]
                     save_data(SHORTCUTS_FILE, st.session_state.shortcuts)
                     st.rerun()
