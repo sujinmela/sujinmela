@@ -862,7 +862,7 @@ st.markdown(f"""
         </div>
     </div>
     <div style='display:flex;align-items:center;'>
-        <img src='data:image/png;base64,{{LOTTE_LOGO_B64}}'
+        <img src='data:image/png;base64,{LOTTE_LOGO_B64}'
              style='height:42px;object-fit:contain;background:white;border-radius:6px;padding:4px 10px;box-shadow:0 1px 8px rgba(0,0,0,0.2);'
              alt='Lotte Premium Outlets Paju'>
     </div>
