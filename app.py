@@ -21,35 +21,126 @@ DATA_FILE = Path("calendar_data.json")
 SHORTCUTS_FILE = Path("shortcuts_data.json")
 DEPT_COLORS = {
     "영업기획팀": "#c8102e",   # 빨강
-    "지원팀":   "#1a3a7c",   # 남색
-    "시설팀":   "#1a7a3c",   # 초록
+    "운영지원팀":   "#1a3a7c",   # 남색
+    "안전관리팀":   "#1a7a3c",   # 초록
 }
 DEPT_BG = {
     "영업기획팀": "rgba(200,16,46,0.10)",
-    "지원팀":   "rgba(26,58,124,0.10)",
-    "시설팀":   "rgba(26,122,60,0.10)",
+    "운영지원팀":   "rgba(26,58,124,0.10)",
+    "안전관리팀":   "rgba(26,122,60,0.10)",
 }
 DEPT_TEXT = {
     "영업기획팀": "#c8102e",
-    "지원팀":   "#1a3a7c",
-    "시설팀":   "#1a7a3c",
+    "운영지원팀":   "#1a3a7c",
+    "안전관리팀":   "#1a7a3c",
 }
-DEPTS = ["영업기획팀", "지원팀", "시설팀"]
+DEPTS = ["영업기획팀", "운영지원팀", "안전관리팀"]
 
-# ── 데이터 로드 / 저장 ─────────────────────────────────────────────────────
+# ── 데이터 로드 / 저장 (GitHub 저장소를 영구 저장소로 사용) ───────────────────
+# Streamlit Community Cloud는 앱이 재부팅/재배포될 때마다 로컬 디스크가
+# 초기화되어(git에 커밋되지 않은 파일은 전부 사라짐), 로컬 파일만으로는
+# 데이터가 유지되지 않는다. 그래서 저장할 때마다 GitHub 저장소의 파일도
+# 함께 갱신(commit)하고, 불러올 때는 GitHub을 우선으로 읽어서 재부팅 후에도
+# 데이터가 살아있도록 한다.
+#
+# 사용하려면 Streamlit Cloud 앱 설정 > Secrets 에 아래 3개를 추가해야 한다:
+#   GITHUB_TOKEN  = "ghp_xxx..."         # repo 쓰기 권한이 있는 Personal Access Token
+#   GITHUB_REPO   = "아이디/저장소이름"    # 예: "myaccount/outlet-app"
+#   GITHUB_BRANCH = "main"                # 생략 시 기본값 "main"
+# Secrets를 설정하지 않으면 예전처럼 로컬 파일에만 저장된다(=재부팅 시 소실).
+
+def _gh_config():
+    try:
+        token = st.secrets.get("GITHUB_TOKEN")
+        repo = st.secrets.get("GITHUB_REPO")
+        branch = st.secrets.get("GITHUB_BRANCH", "main")
+    except Exception:
+        token = repo = branch = None
+    if token and repo:
+        return token, repo, branch
+    return None, None, None
+
+def _gh_get(filename: str):
+    """GitHub 저장소 루트에서 파일 내용을 읽어온다. (content_str, sha) 또는 실패 시 (None, None)."""
+    token, repo, branch = _gh_config()
+    if not token:
+        return None, None
+    url = f"https://api.github.com/repos/{repo}/contents/{urllib.parse.quote(filename)}?ref={urllib.parse.quote(branch)}"
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "outlet-app",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            body = json.loads(r.read().decode("utf-8"))
+            content = base64.b64decode(body["content"]).decode("utf-8")
+            return content, body.get("sha")
+    except Exception:
+        return None, None
+
+def _gh_put(filename: str, content_str: str, message: str):
+    """GitHub 저장소 루트의 파일을 생성/갱신(commit)한다. 성공 시 True."""
+    token, repo, branch = _gh_config()
+    if not token:
+        return False
+    _, sha = _gh_get(filename)  # 최신 sha를 먼저 조회 (충돌 방지)
+    url = f"https://api.github.com/repos/{repo}/contents/{urllib.parse.quote(filename)}"
+    payload = {
+        "message": message,
+        "content": base64.b64encode(content_str.encode("utf-8")).decode(),
+        "branch": branch,
+    }
+    if sha:
+        payload["sha"] = sha
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        method="PUT",
+        headers={
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "User-Agent": "outlet-app",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status in (200, 201)
+    except Exception:
+        return False
+
 def load_data(path: Path) -> dict:
+    # 1) GitHub에 저장된 최신 데이터를 우선 시도
+    content, _ = _gh_get(path.name)
+    if content is not None:
+        try:
+            data = json.loads(content)
+            try:  # 로컬에도 캐시(폴백용)로 저장
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except Exception:
+                pass
+            return data
+        except Exception:
+            pass
+    # 2) GitHub 미설정/실패 시 로컬 파일로 폴백
     if path.exists():
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def save_data(path: Path, data: dict):
+    content_str = json.dumps(data, ensure_ascii=False, indent=2)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.write(content_str)
+    _gh_put(path.name, content_str, message=f"update {path.name}")
 
 def save_sc_order(order: list):
+    content_str = json.dumps(order, ensure_ascii=False)
     with open(Path("sc_order.json"), "w", encoding="utf-8") as f:
-        json.dump(order, f, ensure_ascii=False)
+        f.write(content_str)
+    _gh_put("sc_order.json", content_str, message="update sc_order")
 
 def get_ordered_shortcuts() -> list:
     """shortcuts를 sc_order 순서에 맞게 정렬한 [(key, sc)] 리스트 반환"""
@@ -92,7 +183,18 @@ if "show_sc_admin" not in st.session_state:
 if "sc_order" not in st.session_state:
     # shortcuts의 key 순서를 저장 (없으면 현재 순서 사용)
     sc_order_file = Path("sc_order.json")
-    if sc_order_file.exists():
+    _sc_content, _ = _gh_get(sc_order_file.name)
+    if _sc_content is not None:
+        try:
+            st.session_state.sc_order = json.loads(_sc_content)
+            try:
+                with open(sc_order_file, "w", encoding="utf-8") as _f:
+                    _f.write(_sc_content)
+            except Exception:
+                pass
+        except Exception:
+            st.session_state.sc_order = []
+    elif sc_order_file.exists():
         with open(sc_order_file, "r", encoding="utf-8") as _f:
             st.session_state.sc_order = json.load(_f)
     else:
